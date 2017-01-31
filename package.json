@@ -1,0 +1,28 @@
+{
+  "name": "attak",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "bin": {
+    "attak": "./attak.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^2.1.4",
+    "aws-sdk": "^2.8.0",
+    "babel": "^6.5.2",
+    "coffee-script": "^1.12.3",
+    "extend": "^3.0.0",
+    "lave": "^1.1.10",
+    "mkdirp": "^0.5.1",
+    "node-lambda": "git+https://git@github.com/attak/node-lambda.git",
+    "node-uuid": "^1.4.7",
+    "recast": "^0.11.20",
+    "regenerator": "^0.9.5",
+    "uuid": "^3.0.1"
+  }
+}
