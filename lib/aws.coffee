@@ -1,6 +1,7 @@
 AWS = require 'aws-sdk'
 uuid = require 'uuid'
 async = require 'async'
+nodePath = require 'path'
 
 credentials = new AWS.SharedIniFileCredentials
   profile: 'default'
@@ -106,5 +107,30 @@ AWSUtils =
         console.log data
 
       callback err, data
+
+  getNext: (topology, topic, current) ->
+    next = []
+    for stream in topology.streams
+      if stream.from is current and (stream.topic || topic) is topic
+        next.push stream.to
+    next
+
+  simulate: (program, topology, processorName, data, callback) ->
+    processor = require nodePath.resolve(process.cwd(), "./processors/#{processorName}")
+
+    emit = (topic, emitData, opts) ->
+      console.log "GOT EMIT", topic, emitData, opts
+      for stream in topology.streams
+        if stream.from is processorName and (stream.topic || topic) is topic
+          AWSUtils.simulate program, topology, stream.to, emitData, -> null
+
+    context =
+      emit: emit
+      done: -> callback()
+      fail: (err) -> callback err
+      success: (results) -> callback null, results
+      topology: topology
+
+    processor.handler data, context, callback
 
 module.exports = AWSUtils

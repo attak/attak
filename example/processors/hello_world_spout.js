@@ -1,5 +1,4 @@
 exports.handler = function(event, context, callback) {
-  console.log(arguments);
-  context.emit({text: 'hello world'})
+  context.emit('hello world', {text: 'hello world'})
   callback();
 }

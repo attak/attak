@@ -6,25 +6,26 @@ LambdaUtils = require './lambda'
 module.exports =
   version: '0.0.1'
 
+  simulate: (program) ->
+    topology = require process.cwd()
+    inputPath = nodePath.resolve process.cwd(), program.inputFile
+    input = topology.input || require inputPath
+
+    async.eachOf input, (data, processor, next) ->      
+      AWSUtils.simulate program, topology, processor, data, (err, results) ->
+        next()
+    , ->
+
   trigger: (program) ->
     topology = require process.cwd()
     inputPath = nodePath.resolve process.cwd(), program.inputFile
     input = topology.input || require inputPath
 
-    async.eachOfSeries input, (data, processor, next) ->
+    async.eachOf input, (data, processor, next) ->
       console.log "TRIGGERING", processor, data
       
       AWSUtils.triggerProcessor program, processor, data, (err, results) ->
         next()
-
-      # async.each topology.streams, (stream, nextStream) ->
-      #   streamName = "#{stream.from}-#{stream.to}"
-      #   AWSUtils.describeStream program, topology.name, streamName, (err, results) ->
-      #     streamDefs = results.StreamDescription
-      #     AWSUtils.triggerStream program, streamDefs, data, (err, results) ->
-      #       nextStream()
-      # , ->
-      #   next()
     , ->
       console.log "DONE TRIGGERING"
 

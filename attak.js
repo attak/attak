@@ -66,6 +66,15 @@ program
   });
 
 program
+  .command('simulate')
+  .description('Simulate an attak topology by running it locally')
+  .option('-j, --inputFile [' + INPUT_FILE + ']', 'Event JSON File', INPUT_FILE)
+
+  .action(function (prg) {
+    attak.simulate(prg);
+  });
+
+program
   .command('trigger')
   .description('Trigger one or more streams')
   .option('-r, --region [' + AWS_REGION + ']', 'AWS Region', AWS_REGION)

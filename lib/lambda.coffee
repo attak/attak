@@ -31,33 +31,58 @@ LambdaUtils =
 
         fs.writeFileSync indexPath, """
           var AWS = require('aws-sdk');
+          var async = require('async');
           var source = require('#{processor.source}');
-          var credentials = new AWS.SharedIniFileCredentials({
-            profile: 'default'
-          })
 
-          AWS.config.credentials = credentials
           AWS.config.apiVersions = {
             kinesis: '2013-12-02'
           }
 
+          var getNext = function(topology, topic, current) {
+            var i, len, next, stream;
+            next = [];
+            for (i = 0, len = topology.streams.length; i < len; i++) {
+              stream = topology.streams[i];
+              if (stream.from === current && (stream.topic || topic) === topic) {
+                next.push(stream.to);
+              }
+            }
+            return next;
+          }
+
           exports.handler = function(event, context, callback) {
-            context.emit = function(data, opts) {
-              console.log("EMITTING", data, opts);
+            context.topology = JSON.parse('#{JSON.stringify(topology)}')
 
-              var kinesis = new AWS.Kinesis({
-                region: program.region || 'us-east-1'
-              });
-
-              var params = {
-                Data: new Buffer(JSON.stringify(data)),
-                StreamName: stream.StreamName,
-                PartitionKey: uuid.v1()
-              };
-
-              kinesis.putRecord(params, function(err, data) {});
+            if(event.Records) {
+              var payload = new Buffer(event.Records[0].kinesis.data, 'base64').toString('ascii')
+              event = JSON.parse(payload);
             }
 
+            context.emit = function(topic, data, opts) {
+              console.log("GOT EMIT", topic, data, opts);
+              var nextProcs = getNext(context.topology, topic, '#{name}')
+              async.each(nextProcs, function(nextProc, done) {
+                var kinesis = new AWS.Kinesis({
+                  region: '#{program.region || "us-east-1"}'
+                });
+
+                var params = {
+                  Data: new Buffer(JSON.stringify(data)),
+                  StreamName: context.topology.name + '-#{name}-' + nextProc,
+                  PartitionKey: '#{uuid.v1()}'
+                };
+
+                console.log("PUTTING", params);
+                kinesis.putRecord(params, function(err, data) {
+                  console.log("PUT RESULTS", err, data)
+                  done()
+                });
+              }, function() {
+
+              })
+            }
+
+            console.log("EVENT DATA IS", JSON.stringify(event, null, 2))
             source.handler(event, context, callback);
           }
         """
