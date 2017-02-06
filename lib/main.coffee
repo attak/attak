@@ -17,7 +17,7 @@ module.exports =
     async.eachOf input, (data, processor, next) ->
       runSimulation = (procName, simData, isTopLevel=true) ->
         AWSUtils.simulate program, topology, procName, simData, (topic, emitData, opts) ->
-          report = program.report || console.og
+          report = program.report || console.log
           report chalk.blue("#{procName} : #{topic} -> #{JSON.stringify(emitData)}")
           
           if allResults[procName] is undefined

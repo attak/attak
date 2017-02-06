@@ -16,7 +16,7 @@ LambdaUtils =
   deployProcessors: (topology, program, callback) ->
     retval = {}
 
-    runnerPath = require('path').resolve process.cwd(), './attak_runner.js'
+    runnerPath = require('path').resolve (program.cwd || process.cwd()), './attak_runner.js'
 
     async.forEachOfSeries topology.processors, (processor, name, next) ->
       if fs.existsSync "#{processor.source}/package.json"

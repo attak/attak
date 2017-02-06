@@ -131,15 +131,6 @@ AWSUtils =
     else
       processor = program.processor || require nodePath.resolve(workingDir, source)
 
-    emit = (topic, emitData, opts) ->
-      report = program.report || console.og
-      report chalk.blue("#{processorName} : #{topic} -> #{JSON.stringify(emitData)}")
-      results[topic] = emitData
-      for stream in topology.streams
-        if stream.from is processorName and (stream.topic || topic) is topic
-          AWSUtils.simulate program, topology, stream.to, emitData, (err, nextEmit) ->
-            results[topic] = nextEmit
-
     context =
       emit: emitCallback
       done: -> callback()

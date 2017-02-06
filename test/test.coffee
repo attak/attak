@@ -6,7 +6,7 @@ describe 'attak', ->
     it 'should simulate a simple topology', (done) ->
       program =
         cwd: './test'
-        report: -> #console.log arguments...
+        report: ->
         inputFile: 'test/input.json'
         topology:
           input:
