@@ -16,6 +16,8 @@ LambdaUtils =
   deployProcessors: (topology, program, callback) ->
     retval = {}
 
+    runnerPath = require('path').resolve process.cwd(), './attak_runner.js'
+
     async.forEachOfSeries topology.processors, (processor, name, next) ->
       if fs.existsSync "#{processor.source}/package.json"
         console.log "PROCESSOR", name, "IS A PACKAGE"
@@ -27,9 +29,7 @@ LambdaUtils =
         prog.functionName = name
         prog.handler = 'attak_runner.handler'
 
-        indexPath = require('path').resolve process.cwd(), './attak_runner.js'
-
-        fs.writeFileSync indexPath, """
+        fs.writeFileSync runnerPath, """
           var AWS = require('aws-sdk');
           var async = require('async');
           var source = require('#{processor.source}');
@@ -59,7 +59,6 @@ LambdaUtils =
             }
 
             context.emit = function(topic, data, opts) {
-              console.log("GOT EMIT", topic, data, opts);
               var nextProcs = getNext(context.topology, topic, '#{name}')
               async.each(nextProcs, function(nextProc, done) {
                 var kinesis = new AWS.Kinesis({
@@ -72,9 +71,7 @@ LambdaUtils =
                   PartitionKey: '#{uuid.v1()}'
                 };
 
-                console.log("PUTTING", params);
                 kinesis.putRecord(params, function(err, data) {
-                  console.log("PUT RESULTS", err, data)
                   done()
                 });
               }, function() {
@@ -82,7 +79,6 @@ LambdaUtils =
               })
             }
 
-            console.log("EVENT DATA IS", JSON.stringify(event, null, 2))
             source.handler(event, context, callback);
           }
         """
@@ -92,7 +88,8 @@ LambdaUtils =
           for result in results
             retval[result.FunctionName] = result
 
-          next()
+          fs.unlink runnerPath, ->
+            next()
     , ->
       callback null, retval
 

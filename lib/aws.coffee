@@ -116,7 +116,7 @@ AWSUtils =
     next
 
   simulate: (program, topology, processorName, data, callback) ->
-    processor = require nodePath.resolve(process.cwd(), "./processors/#{processorName}")
+    processor = program.processor || require nodePath.resolve(process.cwd(), "./processors/#{processorName}")
 
     emit = (topic, emitData, opts) ->
       console.log "GOT EMIT", topic, emitData, opts

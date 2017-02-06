@@ -6,17 +6,24 @@ LambdaUtils = require './lambda'
 module.exports =
   version: '0.0.1'
 
-  simulate: (program) ->
-    topology = require process.cwd()
+  simulate: (program, callback) ->
+    topology = program.topology || require process.cwd()
     inputPath = nodePath.resolve process.cwd(), program.inputFile
     input = topology.input || require inputPath
 
+    if topology.processor
+      program.processor = topology.processor
+
+    allResults = []
+
     async.eachOf input, (data, processor, next) ->      
       AWSUtils.simulate program, topology, processor, data, (err, results) ->
+        allResults.push results
         next()
-    , ->
+    , (err) ->
+      callback? err, results
 
-  trigger: (program) ->
+  trigger: (program, callback) ->
     topology = require process.cwd()
     inputPath = nodePath.resolve process.cwd(), program.inputFile
     input = topology.input || require inputPath
@@ -27,9 +34,9 @@ module.exports =
       AWSUtils.triggerProcessor program, processor, data, (err, results) ->
         next()
     , ->
-      console.log "DONE TRIGGERING"
+      callback? err, results
 
-  deploy: (program) ->
+  deploy: (program, callback) ->
     topology = require process.cwd()
 
     if topology.name is undefined
@@ -39,4 +46,4 @@ module.exports =
 
     LambdaUtils.deployProcessors topology, program, (err, lambdas) ->
       AWSUtils.deployStreams topology, program, lambdas, (err, streams) ->
-        console.log "DONE WITH EVERYTHING"
+        callback? err, results
