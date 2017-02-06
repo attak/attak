@@ -115,22 +115,42 @@ AWSUtils =
         next.push stream.to
     next
 
-  simulate: (program, topology, processorName, data, callback) ->
-    processor = program.processor || require nodePath.resolve(process.cwd(), "./processors/#{processorName}")
+  simulate: (program, topology, processorName, data, emitCallback, callback) ->
+    results = {}
+    workingDir = program.cwd || process.cwd()
+    procData = topology.processors[processorName]
+    if procData.constructor is String 
+      source = procData
+    if procData.constructor is Function 
+      source = procData
+    else
+      source = procData.source
+
+    if source.constructor is Function
+      processor = {handler: source}
+    else
+      processor = program.processor || require nodePath.resolve(workingDir, source)
 
     emit = (topic, emitData, opts) ->
-      console.log "GOT EMIT", topic, emitData, opts
+      report = program.report || console.og
+      report chalk.blue("#{processorName} : #{topic} -> #{JSON.stringify(emitData)}")
+      results[topic] = emitData
       for stream in topology.streams
         if stream.from is processorName and (stream.topic || topic) is topic
-          AWSUtils.simulate program, topology, stream.to, emitData, -> null
+          AWSUtils.simulate program, topology, stream.to, emitData, (err, nextEmit) ->
+            results[topic] = nextEmit
 
     context =
-      emit: emit
+      emit: emitCallback
       done: -> callback()
       fail: (err) -> callback err
       success: (results) -> callback null, results
       topology: topology
 
-    processor.handler data, context, callback
+    processor.handler data, context, (err, resultData) ->
+      if resultData
+        results['results'] = resultData
+
+      callback err, results
 
 module.exports = AWSUtils

@@ -1,25 +1,32 @@
 attak = require '../'
 
 describe 'attak', ->
+  describe 'simulate', ->
 
-  it 'should do a thing', (done) ->
-    program =
-      inputFile: 'test/input.json'
-      topology:
-        input: 'test input text'
-        processors:
-          test_proc:
-            source: './test/test_proc'
-        streams: [
-          {
-            to: 'reverse',
-            from: 'hello_world_spout',
-            fields:
-              source_field_1: 'processor_field_1'
-          }
-        ]
+    it 'should simulate a simple topology', (done) ->
+      program =
+        cwd: './test'
+        report: -> #console.log arguments...
+        inputFile: 'test/input.json'
+        topology:
+          input:
+            test_proc: 'test input text'
+          processors:
+            test_proc: (event, context, callback) ->
+              context.emit 'test output', {test: 'output'}
+              callback()
+            other_proc: (event, context, callback) ->
+              context.emit 'modified', {other: event.test}
+              callback()
+          streams: [
+            {
+              to: 'other_proc',
+              from: 'test_proc'
+            }
+          ]
 
-    attak.simulate program, (err, results) ->
-      console.log "SIMULATED", err, results
-
-      done()
+      attak.simulate program, (err, results) ->
+        if results.other_proc?['modified']?.other is 'output'
+          done()
+        else
+          done 'incorrect output'
