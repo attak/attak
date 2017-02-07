@@ -12,7 +12,6 @@ pre-alpha software - not for production use
 
 - [AWS Lambda](https://aws.amazon.com/lambda)/[AWS Kinesis](https://aws.amazon.com/kinesis) topologies √
 - [Fission](https://github.com/fission/fission)/[PubSub](https://cloud.google.com/pubsub) topologies
-- Distributed debugging UI
 
 ## Installation
 
@@ -36,12 +35,12 @@ In order to get a topology running you need to build a topology file and define 
 
 An attak topology is simply a javascript or raw JSON file that we `require`. At its core, a topology is a description of one or more processors and the connections between them. Here's an example of a very simple topology.
 
-```
+```js
 module.exports = {
   name: 'attak-example',                          // a topology name is required
   processors: {                                   // declare processors
+    reverse: './processors/reverse',
     hello_world_spout: './processors/hello_world'
-    reverse: './processors/reverse'
   },
   streams: [                                      // declare processor connections
     {
