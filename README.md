@@ -1,18 +1,26 @@
 # attak
 
-Setup TB-scale realtime streaming distributed computation in minutes - AWS Lambdas coordinated into streaming topologies using Kinesis streams
+*Setup TB-scale realtime streaming distributed computation in minutes at a fraction of the cost*
+
+**attak** helps you string together "serverless" functions and message queues to create distributed compute topologies. It aims to be platform agnostic, beginning with support for AWS and Google Cloud.
 
 ### Status
 
-pre-alpha software - use at your own risk
+pre-alpha software - not for production use
 
-## Installation 
+#### Roadmap
+
+- [AWS Lambda](https://aws.amazon.com/lambda)/[AWS Kinesis](https://aws.amazon.com/kinesis) topologies √
+- [Fission](https://github.com/fission/fission)/[PubSub](https://cloud.google.com/pubsub) topologies
+- Distributed debugging UI
+
+## Installation
 
 `npm install -g attak`
 
 ## Motivation
 
-Lambdas are awesome because single-purpose microservices are a great way to organize code. However, real-world use cases often require multiple microservices, and then things get complicated - suddenly you have to figure out how to communicate between microservices in a fault tolerant way, how to debug multi-microservice issues, etc.
+Serverless functions are awesome because single-purpose microservices are a great way to organize code. However, real-world use cases often require multiple microservices, and then things get complicated - suddenly you have to figure out how to communicate between microservices in a fault tolerant way, how to manage them together, etc.
 
 **attak** is built to combine existing AWS products (Lambdas, Kinesis Streams, CloudWatch, and more) to create a more complete solution to building a distributed compute infrastructure. Compare **attak** to products like Apache Storm
 
@@ -74,7 +82,7 @@ Simulate pulls in data (from `./input.json` by default) and feeds it through the
 
 `attak deploy`
 
-Assembles and deploys a series of AWS lambdas pre-baked with topology information, so event emissions go directly from lambda to kinesis stream to lambda.
+Assembles and deploys a series of functions pre-baked with topology information, so event emissions go directly from function to stream to function.
 
 ### Trigger a live topology
 
