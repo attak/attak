@@ -53,7 +53,7 @@ Serverless functions and queuing systems have existing error handling solutions,
 
 ***Maintenance***
 
-**attak** uses auto-scaling components, so there are no servers to be juggled, no CPUs or disks to monitor, no logs to rotate, etc. Everything just works...and it's much cheaper.
+**attak** uses auto-scaling components, so there are no servers to be juggled, no CPUs or disks to monitor, no logs to rotate, etc. Everything just works...and did we mention it's cheaper?
 
 ## Usage
 
