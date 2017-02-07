@@ -11,7 +11,7 @@ pre-alpha software - not for production use
 #### Roadmap
 
 - Basic Topology Support
-  - (AWS) [AWS Lambda](https://aws.amazon.com/lambda)/[AWS Kinesis](https://aws.amazon.com/kinesis) topologies √
+  - (AWS) [Lambda](https://aws.amazon.com/lambda)/[Kinesis](https://aws.amazon.com/kinesis) topologies √
   - (GCloud) [Fission](https://github.com/fission/fission)/[PubSub](https://cloud.google.com/pubsub) topologies
   - Others? Open an issue! We'd love to hear about your use case.
 - Sources
