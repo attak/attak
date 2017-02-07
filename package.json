@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "bin": {
-    "attak": "./attak.js"
+    "attak": "./bin/attak.js"
   },
   "scripts": {
     "test": "mocha"
