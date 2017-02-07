@@ -10,8 +10,14 @@ pre-alpha software - not for production use
 
 #### Roadmap
 
-- [AWS Lambda](https://aws.amazon.com/lambda)/[AWS Kinesis](https://aws.amazon.com/kinesis) topologies √
-- [Fission](https://github.com/fission/fission)/[PubSub](https://cloud.google.com/pubsub) topologies
+- Basic Topology Support
+  - (AWS) [AWS Lambda](https://aws.amazon.com/lambda)/[AWS Kinesis](https://aws.amazon.com/kinesis) topologies √
+  - (GCloud) [Fission](https://github.com/fission/fission)/[PubSub](https://cloud.google.com/pubsub) topologies
+  - Others? Open an issue! We'd love to hear about your use case.
+- Sources
+  - Clock events
+  - DynamoDB/BigTable
+  - Webhooks
 
 ## Installation
 
@@ -19,13 +25,35 @@ pre-alpha software - not for production use
 
 ## Motivation
 
-Serverless functions are awesome because single-purpose microservices are a great way to organize code. However, real-world use cases often require multiple microservices, and then things get complicated - suddenly you have to figure out how to communicate between microservices in a fault tolerant way, how to manage them together, etc.
+Serverless functions are awesome because single-purpose microservices are a great way to organize code. However, real-world use cases often require multiple microservices, and communicating between them in a fault tolerant way takes some thought.
 
-**attak** is built to combine existing AWS products (Lambdas, Kinesis Streams, CloudWatch, and more) to create a more complete solution to building a distributed compute infrastructure. Compare **attak** to products like Apache Storm
+Existing solutions like Apache Storm use queues to stream data between functions, but require special hosting which can be expensive and cumbersome. They're also mostly focused on Java and JVM technologies.
+
+**attak** is built to combine existing, proven products (Lambdas, Kinesis Streams, Kubernetes, PubSub, etc.) to create a better solution using more modern technologies.
 
 ## Why use **attak**?
 
-Traditional distributed computation frameworks like Apache Storm can be cumbersome and opaque, and they require multiple dedicated servers to run in any kind of production way ([this popular example](https://github.com/nathanmarz/storm-deploy) uses 4 m1-large EC2 instances). Using AWS auto-scaling building blocks and modern tooling/frameworks, we can build an easy to use topology system that costs far less to run and work with.
+***attak** has several advantages*:
+
+***Speed and Simplicity***
+
+It's just node (or whatever shell processes you want to call)
+
+Running a local Storm topology can take several minutes (you have to compile an uber-jar and then boot up the JVM and all the bolt/spout processes). Simulating an **attak** topology takes seconds.
+
+***Price***
+
+Apache Storm requires several dedicated servers to run. [this popular example](https://github.com/nathanmarz/storm-deploy) uses 4 m1-large EC2 instances which costs something like $500/mo even when inactive.
+
+**attak** uses auto-scaling building blocks, so it mostly sits idle when not in use. An inactive topology will likely cost under $10/mo, and will be significantly cheaper at scale also.
+
+***Debugging***
+
+Serverless functions and queuing systems have existing error handling solutions, so any existing debugging infrastructure will still work. For instance, logs from AWS Lambdas are automatically sent to CloudWatch, where they can be easly monitored.
+
+***Maintenance***
+
+**attak** uses auto-scaling components, so there are no servers to be juggled, no CPUs or disks to monitor, no logs to rotate, etc. Everything just works...and it's much cheaper.
 
 ## Usage
 
