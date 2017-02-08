@@ -33,7 +33,7 @@ Existing solutions like Apache Storm use queues to stream data between functions
 
 ## Why use **attak**?
 
-***attak** has several advantages*:
+**attak** has several advantages:
 
 ***Speed and Simplicity***
 
