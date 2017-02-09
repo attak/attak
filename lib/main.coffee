@@ -40,10 +40,15 @@ module.exports =
     inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
     input = topology.input || require inputPath
 
+    program.startTime = new Date
+
     async.eachOf input, (data, processor, next) ->      
       AWSUtils.triggerProcessor program, processor, data, (err, results) ->
         next()
     , ->
+      for procName, procData of topology.processors
+        AWSUtils.monitorLogs program, procName, (err, results) -> null
+
       callback? err, results
 
   deploy: (program, callback) ->

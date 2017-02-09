@@ -108,6 +108,45 @@ AWSUtils =
 
       callback err, data
 
+  monitorLogs: (program, processor, callback) ->
+    logs = new AWS.CloudWatchLogs
+
+    streamParams =
+      logGroupName: "/aws/lambda/#{processor}-#{program.environment}"
+      descending: true
+      orderBy: 'LastEventTime'
+      limit: 10
+
+    logParams =
+      logGroupName: "/aws/lambda/#{processor}-#{program.environment}"
+      # logStreamName: results.logStreams[0].logStreamName
+      startTime: program.startTime.getTime()
+      # endTime: 0,
+      # limit: 0,
+      # nextToken: 'STRING_VALUE',
+      # startFromHead: true || false,
+
+    logs.describeLogStreams streamParams, (err, results) ->
+      
+      monitorStart = new Date().getTime()
+      
+      logInterval = setInterval ->
+        logParams.logStreamName = results.logStreams[0].logStreamName
+        
+        logs.getLogEvents logParams, (err, logEvents) ->
+          if new Date().getTime() - monitorStart > 60000
+            clearInterval logInterval
+
+          for event in logEvents.events
+            console.log processor, ": ", event.message.trim()
+
+            logParams.startTime = event.timestamp + 1
+            if event.message.indexOf('END RequestId') != -1
+              clearInterval logInterval
+      , 2000
+
+    callback()
+
   getNext: (topology, topic, current) ->
     next = []
     for stream in topology.streams
