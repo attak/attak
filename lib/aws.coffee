@@ -33,13 +33,10 @@ AWSUtils =
       callback err, results
 
   deployStreams: (topology, program, lambdas, callback) ->
-    console.log "DEPLOYING STREAMS", topology.streams, program
     async.forEachSeries topology.streams, (stream, next) ->
-      console.log "STREAM DEFS", stream
       streamName = "#{stream.from}-#{stream.to}"
       AWSUtils.createStream program, topology.name, streamName, stream.opts, (err, results) ->
         AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->          
-          console.log "HAVE LAMBDAS", lambdas
           lambdaData = lambdas["#{stream.to}-#{program.environment}"]
           AWSUtils.associateStream program, streamResults.StreamDescription, lambdaData, (err, results) ->
             console.log "STREAM CREATE", err, results
@@ -103,8 +100,6 @@ AWSUtils =
     lambda.invoke params, (err, data) ->
       if err
         console.log err, err.stack
-      else
-        console.log data
 
       callback err, data
 
@@ -118,21 +113,25 @@ AWSUtils =
       limit: 10
 
     logParams =
+      startTime: program.startTime.getTime()
       logGroupName: "/aws/lambda/#{processor}-#{program.environment}"
       # logStreamName: results.logStreams[0].logStreamName
-      startTime: program.startTime.getTime()
       # endTime: 0,
       # limit: 0,
       # nextToken: 'STRING_VALUE',
       # startFromHead: true || false,
 
-    logs.describeLogStreams streamParams, (err, results) ->
-      
-      monitorStart = new Date().getTime()
-      
-      logInterval = setInterval ->
+    logInterval = setInterval ->
+
+      logs.describeLogStreams streamParams, (err, results) ->
+        results.logStreams.sort (a, b) ->
+          b.lastEventTimestamp > a.lastEventTimestamp
+
+        monitorStart = new Date().getTime()
+        # console.log "STREAM", processor, results.logStreams[0]
+
         logParams.logStreamName = results.logStreams[0].logStreamName
-        
+
         logs.getLogEvents logParams, (err, logEvents) ->
           if new Date().getTime() - monitorStart > 60000
             clearInterval logInterval
@@ -143,7 +142,7 @@ AWSUtils =
             logParams.startTime = event.timestamp + 1
             if event.message.indexOf('END RequestId') != -1
               clearInterval logInterval
-      , 2000
+    , 2000
 
     callback()
 
