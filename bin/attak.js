@@ -3,7 +3,7 @@ require('coffee-script/register');
 
 var fs = require('fs');
 var dotenv = require('dotenv');
-var attak = require('./lib/main');
+var attak = require('../lib/main');
 var program = require('commander');
 
 var packageJson = fs.existsSync(process.cwd() + '/package.json') ? require(process.cwd() + '/package.json') : {};
