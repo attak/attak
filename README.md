@@ -8,16 +8,19 @@
 
 pre-alpha software - not for production use
 
-#### Roadmap
+#### Platform Roadmap
 
-- Basic Topology Support
-  - (AWS) [Lambda](https://aws.amazon.com/lambda)/[Kinesis](https://aws.amazon.com/kinesis) topologies √
-  - (GCloud) [Fission](https://github.com/fission/fission)/[PubSub](https://cloud.google.com/pubsub) topologies
-  - Others? Open an issue! We'd love to hear about your use case.
-- Sources
-  - Clock events
-  - DynamoDB/BigTable
-  - Webhooks
+_tldr: AWS first_
+
+1. AWS Support
+    - [Lambda](https://aws.amazon.com/lambda)/[Kinesis](https://aws.amazon.com/kinesis) topologies √
+    - CloudWatch log integration √
+
+2. Google Cloud Support
+    - [Funktion](https://github.com/funktionio/funktion)/[PubSub](https://cloud.google.com/pubsub) topologies
+    - StackDriver log integartion
+  
+3. Others? Open an issue! We'd love to hear about your use case.
 
 ## Installation
 
