@@ -8,20 +8,6 @@
 
 pre-alpha software - not for production use
 
-#### Platform Roadmap
-
-_tldr: AWS first_
-
-1. AWS Support
-    - [Lambda](https://aws.amazon.com/lambda)/[Kinesis](https://aws.amazon.com/kinesis) topologies √
-    - CloudWatch log integration √
-
-2. Google Cloud Support
-    - [Funktion](https://github.com/funktionio/funktion)/[PubSub](https://cloud.google.com/pubsub) topologies
-    - StackDriver log integartion
-  
-3. Others? Open an issue! We'd love to hear about your use case.
-
 ## Installation
 
 `npm install -g attak`
@@ -119,3 +105,37 @@ Assembles and deploys a series of functions pre-baked with topology information,
 `attak trigger`
 
 Pulls in data (from `./input.json` by default) and sends it to a live topology instance
+
+### Roadmap
+
+#### Features
+
+- Create basic topologies
+    - processors √
+    - streams (with topics) √
+
+- Debugging
+    - simulate topology locally √
+    - trigger live topology √
+    - collect topology logs √
+
+- Topology Flow Control
+    - managed parallelization (split/join streams) √
+    - 
+
+
+#### Platforms
+
+_tldr: AWS first_
+
+1. AWS Support
+    - [Lambda](https://aws.amazon.com/lambda)/[Kinesis](https://aws.amazon.com/kinesis) topologies √
+    - CloudWatch log integration √
+
+2. Google Cloud Support
+    - [Cloud Functions](https://cloud.google.com/functions/)/[PubSub](https://cloud.google.com/pubsub) topologies
+    - StackDriver? log integartion
+  
+We intend for full google cloud support, but we won't focus on it until Cloud Functions gets out of alpha. Theoretically that will happen ["soon"](https://github.com/apex/apex/issues/232#issuecomment-218246926)
+
+3. Others? Open an issue! We'd love to hear about your use case.
