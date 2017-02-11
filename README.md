@@ -120,9 +120,8 @@ Pulls in data (from `./input.json` by default) and sends it to a live topology i
     - collect topology logs √
 
 - Topology Flow Control
-    - managed parallelization (split/join streams) √
-    - 
-
+    - managed parallelization (split/join streams)
+    - stream aggregation
 
 #### Platforms
 
@@ -130,11 +129,11 @@ _tldr: AWS first_
 
 1. AWS Support
     - [Lambda](https://aws.amazon.com/lambda)/[Kinesis](https://aws.amazon.com/kinesis) topologies √
-    - CloudWatch log integration √
+    - CloudWatch logs √
 
 2. Google Cloud Support
     - [Cloud Functions](https://cloud.google.com/functions/)/[PubSub](https://cloud.google.com/pubsub) topologies
-    - StackDriver? log integartion
+    - StackDriver? logs
   
 We intend for full google cloud support, but we won't focus on it until Cloud Functions gets out of alpha. Theoretically that will happen ["soon"](https://github.com/apex/apex/issues/232#issuecomment-218246926)
 
