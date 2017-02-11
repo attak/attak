@@ -24,6 +24,9 @@
     "node-uuid": "^1.4.7",
     "recast": "^0.11.20",
     "regenerator": "^0.9.5",
-    "uuid": "^3.0.1"
+    "simple-peer": "^6.2.2",
+    "socket.io-client": "^1.7.2",
+    "uuid": "^3.0.1",
+    "wrtc": "0.0.61"
   }
 }

@@ -2,6 +2,7 @@ chalk = require 'chalk'
 async = require 'async'
 nodePath = require 'path'
 AWSUtils = require './aws'
+CommUtils = require './comm'
 LambdaUtils = require './lambda'
 
 module.exports =
@@ -9,31 +10,33 @@ module.exports =
 
   simulate: (program, callback) ->
     topology = program.topology || require (program.cwd || process.cwd())
-    inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
-    input = topology.input || require inputPath
 
-    allResults = {}
+    CommUtils.connect program, (socket, peer) ->
+      inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
+      input = topology.input || require inputPath
 
-    async.eachOf input, (data, processor, next) ->
-      runSimulation = (procName, simData, isTopLevel=true) ->
-        AWSUtils.simulate program, topology, procName, simData, (topic, emitData, opts) ->
-          report = program.report || console.log
-          report chalk.blue("#{procName} : #{topic} -> #{JSON.stringify(emitData)}")
+      allResults = {}
+
+      async.eachOf input, (data, processor, next) ->
+        runSimulation = (procName, simData, isTopLevel=true) ->
+          AWSUtils.simulate program, topology, procName, simData, (topic, emitData, opts) ->
+            report = program.report || console.log
+            report chalk.blue("#{procName} : #{topic} -> #{JSON.stringify(emitData)}")
+            
+            if allResults[procName] is undefined
+              allResults[procName] = {}
+            allResults[procName][topic] = emitData
+            for stream in topology.streams
+              if stream.from is procName and (stream.topic || topic) is topic
+                runSimulation stream.to, emitData, false
           
-          if allResults[procName] is undefined
-            allResults[procName] = {}
-          allResults[procName][topic] = emitData
-          for stream in topology.streams
-            if stream.from is procName and (stream.topic || topic) is topic
-              runSimulation stream.to, emitData, false
-        
-        , (err, results) ->
-          if isTopLevel
-            next()
+          , (err, results) ->
+            if isTopLevel
+              next()
 
-      runSimulation processor, data
-    , (err) ->
-      callback? err, allResults
+        runSimulation processor, data
+      , (err) ->
+        callback? err, allResults
 
   trigger: (program, callback) ->
     topology = require (program.cwd || process.cwd())

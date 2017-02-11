@@ -35,6 +35,13 @@ var INPUT_FILE = process.env.INPUT_FILE || 'input.json';
 var PACKAGE_DIRECTORY = process.env.PACKAGE_DIRECTORY;
 var CONTEXT_FILE = process.env.CONTEXT_FILE || 'context.json';
 var PREBUILT_DIRECTORY = process.env.PREBUILT_DIRECTORY || '';
+var LOGIN_NAME = process.env.LOGIN_NAME || '';
+
+var close =function() {
+  setTimeout(function() {
+    process.exit()
+  }, 500)
+}
 
 program
   .command('deploy')
@@ -62,16 +69,16 @@ program
   .option('-x, --excludeGlobs [' + EXCLUDE_GLOBS + ']', 'Space-separated glob pattern(s) for additional exclude files (e.g. "event.json dotenv.sample")', EXCLUDE_GLOBS)
   .option('-D, --prebuiltDirectory [' + PREBUILT_DIRECTORY + ']', 'Prebuilt directory', PREBUILT_DIRECTORY)
   .action(function (prg) {
-    attak.deploy(prg);
+    attak.deploy(prg, close);
   });
 
 program
   .command('simulate')
   .description('Simulate an attak topology by running it locally')
   .option('-j, --inputFile [' + INPUT_FILE + ']', 'Event JSON File', INPUT_FILE)
-
+  .option('-i, --id [' + LOGIN_NAME + ']', 'Debug session ID (defaults to username)', LOGIN_NAME)
   .action(function (prg) {
-    attak.simulate(prg);
+    attak.simulate(prg, close);
   });
 
 program
@@ -82,7 +89,7 @@ program
   .option('-e, --environment [' + AWS_ENVIRONMENT + ']', 'Choose environment {dev, staging, production}', AWS_ENVIRONMENT)
 
   .action(function (prg) {
-    attak.trigger(prg);
+    attak.trigger(prg, close);
   });
 
 program.parse(process.argv);
