@@ -12,7 +12,6 @@ CommUtils =
     socket.emit 'identity', identity
 
   connect: (program, callback) ->
-    console.log "CONNECT"
     hasSocket = false
     hasSignal = false
 
@@ -21,12 +20,10 @@ CommUtils =
 
     socket.on 'connect', ->
       hasSocket = true
-      console.log "SOCKET CONNECT"
       if hasSignal
         CommUtils.emitIdentity program, socket, signal
 
     socket.on 'client signal', (data) ->
-      console.log "CLIENT SIGNAL", data
       peer.signal data
 
     peer = new Peer
@@ -34,7 +31,6 @@ CommUtils =
       wrtc: wrtc
 
     peer.on 'signal', (data) ->
-      console.log "PEER SIGNAL", data
       if data.type isnt 'offer' then return
 
       hasSignal = true

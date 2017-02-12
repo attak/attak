@@ -39,15 +39,11 @@ AWSUtils =
         AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->          
           lambdaData = lambdas["#{stream.to}-#{program.environment}"]
           AWSUtils.associateStream program, streamResults.StreamDescription, lambdaData, (err, results) ->
-            console.log "STREAM CREATE", err, results
             next()
     , ->
       callback()
 
   associateStream: (program, stream, lambdaData, callback) ->
-    console.log "ASSOCIATE STREAM", stream
-    console.log "WITH LAMBDA", lambdaData
-
     lambda = new AWS.Lambda
     lambda.config.region = program.region
     lambda.config.endpoint = 'lambda.us-east-1.amazonaws.com'
@@ -61,7 +57,6 @@ AWSUtils =
       StartingPosition: 'LATEST'
 
     lambda.createEventSourceMapping params, (err, data) ->
-      console.log "RESULTS", err, data
       callback err, data
 
   triggerStream: (program, stream, data, callback) ->
@@ -122,7 +117,6 @@ AWSUtils =
       # startFromHead: true || false,
 
     logInterval = setInterval ->
-
       logs.describeLogStreams streamParams, (err, results) ->
         results.logStreams.sort (a, b) ->
           b.lastEventTimestamp > a.lastEventTimestamp
@@ -135,6 +129,7 @@ AWSUtils =
         logs.getLogEvents logParams, (err, logEvents) ->
           if new Date().getTime() - monitorStart > 60000
             clearInterval logInterval
+            callback()
 
           for event in logEvents.events
             console.log processor, ": ", event.message.trim()
@@ -142,9 +137,8 @@ AWSUtils =
             logParams.startTime = event.timestamp + 1
             if event.message.indexOf('END RequestId') != -1
               clearInterval logInterval
+              callback()
     , 2000
-
-    callback()
 
   getNext: (topology, topic, current) ->
     next = []

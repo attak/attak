@@ -2,13 +2,13 @@ chalk = require 'chalk'
 async = require 'async'
 nodePath = require 'path'
 AWSUtils = require './aws'
-CommUtils = require './comm'
 LambdaUtils = require './lambda'
 
 module.exports =
   version: '0.0.1'
 
   simulate: (program, callback) ->
+    CommUtils = require './comm'
     CommUtils.connect program, (socket, wrtc) ->
       topology = program.topology || require (program.cwd || process.cwd())
 
@@ -55,11 +55,12 @@ module.exports =
     async.eachOf input, (data, processor, next) ->      
       AWSUtils.triggerProcessor program, processor, data, (err, results) ->
         next()
-    , ->
-      for procName, procData of topology.processors
-        AWSUtils.monitorLogs program, procName, (err, results) -> null
-
-      callback? err, results
+    , (err) ->
+      async.eachOf topology.processors, (procData, procName, nextProc) ->
+        AWSUtils.monitorLogs program, procName, (err, results) ->
+          nextProc()
+      , ->
+        callback? err
 
   deploy: (program, callback) ->
     topology = require (program.cwd || process.cwd())
@@ -69,4 +70,4 @@ module.exports =
 
     LambdaUtils.deployProcessors topology, program, (err, lambdas) ->
       AWSUtils.deployStreams topology, program, lambdas, (err, streams) ->
-        callback? err, results
+        callback? err, {lambdas, streams}
