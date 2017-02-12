@@ -9,9 +9,12 @@ module.exports =
   version: '0.0.1'
 
   simulate: (program, callback) ->
-    topology = program.topology || require (program.cwd || process.cwd())
+    CommUtils.connect program, (socket, wrtc) ->
+      topology = program.topology || require (program.cwd || process.cwd())
 
-    CommUtils.connect program, (socket, peer) ->
+      wrtc.emit 'topology',
+        topology: topology
+
       inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
       input = topology.input || require inputPath
 
@@ -20,8 +23,12 @@ module.exports =
       async.eachOf input, (data, processor, next) ->
         runSimulation = (procName, simData, isTopLevel=true) ->
           AWSUtils.simulate program, topology, procName, simData, (topic, emitData, opts) ->
-            report = program.report || console.log
-            report chalk.blue("#{procName} : #{topic} -> #{JSON.stringify(emitData)}")
+            report = program.report || wrtc.emit || () ->
+              console.log chalk.blue("#{procName} : #{topic}", arguments...)
+
+            report 'emit',
+              data: emitData            
+              processor: processor
             
             if allResults[procName] is undefined
               allResults[procName] = {}

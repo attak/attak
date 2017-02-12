@@ -35,9 +35,7 @@ CommUtils =
 
     peer.on 'signal', (data) ->
       console.log "PEER SIGNAL", data
-      if data.type isnt 'offer'
-        # peer.signal data.candidate
-        return
+      if data.type isnt 'offer' then return
 
       hasSignal = true
       signal = data
@@ -48,8 +46,11 @@ CommUtils =
     peer.on 'data', (data) -> console.log "PEER DATA", data
     peer.on 'error', (err) -> console.log "PEER ERR", err
     peer.on 'connect', () ->
-      peer.send JSON.stringify({awesome: true})
-      console.log "PEER CONNECT"
-      callback socket, peer
+      wrtcWrapper =
+        emit: (type, data) ->
+          peer.send JSON.stringify
+            type: type
+            data: data
+      callback socket, wrtcWrapper
 
 module.exports = CommUtils
