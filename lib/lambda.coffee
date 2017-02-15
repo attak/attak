@@ -33,9 +33,9 @@ LambdaUtils =
       lambda.deploy prog, (err, results) ->
         for result in results
           retval[result.FunctionName] = result
-        next()
-        # fs.unlink runnerPath, ->
-        #   next()
+
+        fs.unlink runnerPath, ->
+          next()
     , ->
       callback null, retval
 

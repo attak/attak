@@ -67,7 +67,7 @@ AWSUtils =
 
     params =
       Data: new Buffer JSON.stringify(data)
-      StreamName: stream.StreamName
+      StreamName: stream.StreamName || stream
       PartitionKey: uuid.v1()
       # ExplicitHashKey: 'STRING_VALUE'
       # SequenceNumberForOrdering: 'STRING_VALUE'

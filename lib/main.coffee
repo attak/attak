@@ -1,14 +1,18 @@
+uuid = require 'uuid'
 chalk = require 'chalk'
 async = require 'async'
 nodePath = require 'path'
 AWSUtils = require './aws'
+CommUtils = require './comm'
 LambdaUtils = require './lambda'
 
 module.exports =
   version: '0.0.1'
+  aws: AWSUtils
+  comm: CommUtils
+  lambda: LambdaUtils
 
   simulate: (program, callback) ->
-    CommUtils = require './comm'
     CommUtils.connect program, (socket, wrtc) ->
       topology = program.topology || require (program.cwd || process.cwd())
 
@@ -27,8 +31,10 @@ module.exports =
               console.log chalk.blue("#{procName} : #{topic}", arguments...)
 
             report 'emit',
-              data: emitData            
-              processor: processor
+              data: emitData
+              topic: topic       
+              trace: simData.trace || uuid.v1()
+              processor: procName
             
             if allResults[procName] is undefined
               allResults[procName] = {}
