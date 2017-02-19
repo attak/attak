@@ -147,13 +147,17 @@ AWSUtils =
         next.push stream.to
     next
 
-  simulate: (program, topology, processorName, data, emitCallback, callback) ->
-    results = {}
+  getProcessor: (program, topology, name) ->
     workingDir = program.cwd || process.cwd()
-    procData = topology.processors[processorName]
+
+    if topology.processors.constructor is String
+      procData = "#{topology.processors}/#{name}"
+    else
+      procData = topology.processors[name]
+
     if procData.constructor is String 
       source = procData
-    if procData.constructor is Function 
+    else if procData.constructor is Function 
       source = procData
     else
       source = procData.source
@@ -163,17 +167,32 @@ AWSUtils =
     else
       processor = program.processor || require nodePath.resolve(workingDir, source)
 
+  simulate: (program, topology, processorName, data, emitCallback, callback) ->
+    results = {}
+    workingDir = program.cwd || process.cwd()
+    
+    processor = AWSUtils.getProcessor program, topology, processorName
+
+    emit = ->
+      try
+        emitCallback arguments...
+      catch e
+        null
+
     context =
-      emit: emitCallback
+      emit: emit
       done: -> callback()
       fail: (err) -> callback err
       success: (results) -> callback null, results
       topology: topology
 
-    processor.handler data, context, (err, resultData) ->
-      if resultData
-        results['results'] = resultData
+    try
+      processor.handler data, context, (err, resultData) ->
+        if resultData
+          results['results'] = resultData
 
-      callback err, results
+        callback err, results
+    catch e
+      console.log "Error running #{processorName}:\n#{e} #{e.stack}"
 
 module.exports = AWSUtils

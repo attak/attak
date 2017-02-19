@@ -36,6 +36,7 @@ var PACKAGE_DIRECTORY = process.env.PACKAGE_DIRECTORY;
 var CONTEXT_FILE = process.env.CONTEXT_FILE || 'context.json';
 var PREBUILT_DIRECTORY = process.env.PREBUILT_DIRECTORY || '';
 var LOGIN_NAME = process.env.LOGIN_NAME || '';
+var LOCAL_DYNAMO = process.env.LOCAL_DYNAMO || packageJson.dynamo || false
 
 var close =function() {
   setTimeout(function() {
@@ -75,6 +76,7 @@ program
 program
   .command('simulate')
   .description('Simulate an attak topology by running it locally')
+  .option('-dy, --dynamo', 'Run local dynamodb simulator', LOCAL_DYNAMO)
   .option('-j, --inputFile [' + INPUT_FILE + ']', 'Event JSON File', INPUT_FILE)
   .option('-i, --id [' + LOGIN_NAME + ']', 'Debug session ID (defaults to username)', LOGIN_NAME)
   .action(function (prg) {
