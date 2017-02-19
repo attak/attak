@@ -1,4 +1,4 @@
-# attak
+[![Attak Distributed Computing Framework](./lib/img/readme.png)](http://attak.io)
 
 *Setup TB-scale realtime streaming distributed computation in minutes at a fraction of the cost*
 
@@ -30,19 +30,17 @@ It's just node (or whatever shell processes you want to call)
 
 Running a local Storm topology can take several minutes (you have to compile an uber-jar and then boot up the JVM and all the bolt/spout processes). Simulating an **attak** topology takes seconds.
 
+Serverless functions and queuing systems have existing error handling solutions, so any existing debugging infrastructure will still work. For instance, logs from AWS Lambdas are automatically sent to CloudWatch, where they can be easly monitored.
+
 ***Price***
 
 Apache Storm requires several dedicated servers to run. [this popular example](https://github.com/nathanmarz/storm-deploy) uses 4 m1-large EC2 instances which costs something like $500/mo even when inactive.
 
 **attak** uses auto-scaling building blocks, so it mostly sits idle when not in use. An inactive topology will likely cost under $10/mo, and will be significantly cheaper at scale also.
 
-***Debugging***
-
-Serverless functions and queuing systems have existing error handling solutions, so any existing debugging infrastructure will still work. For instance, logs from AWS Lambdas are automatically sent to CloudWatch, where they can be easly monitored.
-
 ***Maintenance***
 
-**attak** uses auto-scaling components, so there are no servers to be juggled, no CPUs or disks to monitor, no logs to rotate, etc. Everything just works...and did we mention it's cheaper?
+Auto-scaling components mean there are no servers to be juggled, no CPUs or disks to monitor, no logs to rotate, etc. Everything just works...and did we mention it's cheaper?
 
 ## Usage
 
