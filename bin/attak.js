@@ -38,7 +38,7 @@ var PREBUILT_DIRECTORY = process.env.PREBUILT_DIRECTORY || '';
 var LOGIN_NAME = process.env.LOGIN_NAME || '';
 var LOCAL_DYNAMO = process.env.LOCAL_DYNAMO || packageJson.dynamo || false
 
-var close =function() {
+var close = function() {
   setTimeout(function() {
     process.exit()
   }, 500)
@@ -71,6 +71,13 @@ program
   .option('-D, --prebuiltDirectory [' + PREBUILT_DIRECTORY + ']', 'Prebuilt directory', PREBUILT_DIRECTORY)
   .action(function (prg) {
     attak.deploy(prg, close);
+  });
+
+program
+  .command('init')
+  .description('Create scaffolding for a new attak project')
+  .action(function (prg) {
+    attak.init(prg, close);
   });
 
 program

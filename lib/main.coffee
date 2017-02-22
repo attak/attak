@@ -4,6 +4,8 @@ chalk = require 'chalk'
 async = require 'async'
 nodePath = require 'path'
 AWSUtils = require './aws'
+inquirer = require 'inquirer'
+download = require 'download-github-repo'
 CommUtils = require './comm'
 LambdaUtils = require './lambda'
 
@@ -13,6 +15,31 @@ Attak =
     aws: AWSUtils
     comm: CommUtils
     lambda: LambdaUtils
+
+  init: (program, callback) ->
+    console.log "INIT"
+    workingDir = program.cwd || process.cwd()
+
+    questions = [{
+      type: 'input',
+      name: 'name',
+      message: 'Project name?'
+      default: 'attak-hello-world'
+    }]
+
+    inquirer.prompt questions
+      .then (answers) ->
+        path = "#{workingDir}/#{answers.name}"
+        console.log "FULL PATH", path
+        
+        if not fs.existsSync path
+          fs.mkdirSync path
+
+        download "attak/attak-hello-world", path, ->
+          console.log "DONE", arguments
+          callback()
+      .catch (err) ->
+        console.log "CAUGHT ERROR", err
 
   simulate: (program, callback) ->
     workingDir = program.cwd || process.cwd()
