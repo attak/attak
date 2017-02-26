@@ -7,7 +7,11 @@ AWSUtils = require './aws'
 inquirer = require 'inquirer'
 download = require 'download-github-repo'
 CommUtils = require './comm'
+kinesalite = require 'kinesalite'
 LambdaUtils = require './lambda'
+
+process.on 'uncaughtExcepction', (err) ->
+  console.log "UNCAUGHT", err
 
 Attak =
   __internal:
@@ -45,6 +49,8 @@ Attak =
     workingDir = program.cwd || process.cwd()
     topology = program.topology || require workingDir
 
+    program.startTime = new Date
+
     if topology.processors.constructor is String
       processorPath = nodePath.resolve(workingDir, topology.processors)
       console.log "PROCESSOR PATH", processorPath
@@ -62,18 +68,27 @@ Attak =
     inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
     input = topology.input || require inputPath
 
-    if program.id
-      CommUtils.connect program, (socket, wrtc) ->
-        wrtc.emit 'topology',
-          topology: topology
+    kinesaliteServer = kinesalite
+      # ssl: true
+      path: nodePath.resolve __dirname, '../simulationdb'
+      createStreamMs: 0
 
-        opts =
-          report: wrtc.emit
+    kinesaliteServer.listen 6668, (err) ->
+      program.kinesisEndpoint = 'http://localhost:6668'
 
-        Attak.runSimulations program, topology, input, opts, callback
+      AWSUtils.deploySimulationStreams program, topology, (streamNames) ->
+        if program.id
+          CommUtils.connect program, (socket, wrtc) ->
+            wrtc.emit 'topology',
+              topology: topology
 
-    else
-      Attak.runSimulations program, topology, input, {}, callback
+            opts =
+              report: wrtc.emit
+
+            Attak.runSimulations program, topology, input, opts, callback
+
+        else
+          Attak.runSimulations program, topology, input, {}, callback
 
   runSimulations: (program, topology, input, simOpts, callback) ->
     allResults = {}
@@ -83,6 +98,7 @@ Attak =
         numEmitted = 0
         try
           AWSUtils.simulate program, topology, procName, simData, (topic, emitData, opts) ->
+
             numEmitted += 1
             report = program.report || simOpts?.report || (eventName, args...) ->
               console.log chalk.blue("#{procName} : #{topic}", JSON.stringify(emitData))
@@ -102,6 +118,7 @@ Attak =
           
           , (err, results) ->
             if isTopLevel
+              console.log "CALLING NEXT", err, results
               next()
         catch e
           console.log "Error running #{procName}:\n#{e} #{e.stack}"

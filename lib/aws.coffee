@@ -1,7 +1,10 @@
+url = require 'url'
 AWS = require 'aws-sdk'
 uuid = require 'uuid'
 async = require 'async'
 nodePath = require 'path'
+AttakProc = require 'attak-processor'
+kinesisStreams = require 'kinesis'
 
 credentials = new AWS.SharedIniFileCredentials
   profile: 'default'
@@ -11,30 +14,34 @@ AWS.config.apiVersions =
   kinesis: '2013-12-02'
 
 AWSUtils =
+  getStreamName: (topologyName, sourceProcessor, destProcessor) ->
+    "#{topologyName}-#{sourceProcessor}-#{destProcessor}"
+
   createStream: (program, topology, stream, [opts]..., callback) ->
     streamOpts =
       ShardCount: opts?.shards || 1
-      StreamName: "#{topology}-#{stream}"
+      StreamName: stream
 
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
+      endpoint: program.kinesisEndpoint
 
     kinesis.createStream streamOpts, (err, results) ->
       callback err, results
 
   describeStream: (program, topology, stream, callback) ->
     opts =
-      StreamName: "#{topology}-#{stream}"
+      StreamName: stream
 
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
-
+      endpoint: program.kinesisEndpoint
     kinesis.describeStream opts, (err, results) ->
       callback err, results
 
   deployStreams: (topology, program, lambdas, callback) ->
     async.forEachSeries topology.streams, (stream, next) ->
-      streamName = "#{stream.from}-#{stream.to}"
+      streamName = AWSUtils.getStreamName topology.name, stream.from, stream.to
       AWSUtils.createStream program, topology.name, streamName, stream.opts, (err, results) ->
         AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->          
           lambdaData = lambdas["#{stream.to}-#{program.environment}"]
@@ -42,6 +49,19 @@ AWSUtils =
             next()
     , ->
       callback()
+
+  deploySimulationStreams: (program, topology, callback) ->
+    names = []
+    async.forEachSeries topology.streams, (stream, next) ->
+      streamName = AWSUtils.getStreamName topology.name, stream.from, stream.to,
+        host: url.parse(program.kinesisEndpoint).hostname
+        port: url.parse(program.kinesisEndpoint).port
+      AWSUtils.createStream program, topology.name, streamName, stream.opts, (err, results) ->
+        AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->
+          names.push streamName
+          next()
+    , (err) ->
+      callback names
 
   associateStream: (program, stream, lambdaData, callback) ->
     lambda = new AWS.Lambda
@@ -64,13 +84,12 @@ AWSUtils =
     
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
+      endpoint: program.kinesisEndpoint
 
     params =
       Data: new Buffer JSON.stringify(data)
       StreamName: stream.StreamName || stream
       PartitionKey: uuid.v1()
-      # ExplicitHashKey: 'STRING_VALUE'
-      # SequenceNumberForOrdering: 'STRING_VALUE'
 
     kinesis.putRecord params, (err, data) ->
       console.log "PUT RESULTS", err, data
@@ -147,6 +166,13 @@ AWSUtils =
         next.push stream.to
     next
 
+  nextByTopic: (topology, current) ->
+    next = {}
+    for stream in topology.streams
+      if stream.from is current
+        next[stream.topic || 'all'] = stream.to
+    next
+
   getProcessor: (program, topology, name) ->
     workingDir = program.cwd || process.cwd()
 
@@ -173,25 +199,63 @@ AWSUtils =
     
     processor = AWSUtils.getProcessor program, topology, processorName
 
-    emit = ->
-      try
-        emitCallback arguments...
-      catch e
-        null
-
     context =
-      emit: emit
       done: -> callback()
       fail: (err) -> callback err
       success: (results) -> callback null, results
       topology: topology
+      kinesisEndpoint: program.kinesisEndpoint
 
     try
-      processor.handler data, context, (err, resultData) ->
-        if resultData
-          results['results'] = resultData
+      kinesis = new AWS.Kinesis
+        region: program.region || 'us-east-1'
+        endpoint: program.kinesisEndpoint
 
-        callback err, results
+      next = AWSUtils.nextByTopic topology, processorName
+
+      iterators = {}
+
+      async.forEachOf next, (nextProc, topic, done) ->
+        streamName = AWSUtils.getStreamName topology.name, processorName, nextProc
+
+        kinesis.describeStream
+          StreamName: streamName
+        , (err, streamData) ->
+          shardId = streamData.StreamDescription.Shards[0].ShardId
+
+          kinesis.getShardIterator
+            ShardId: shardId
+            StreamName: streamName
+            ShardIteratorType: 'LATEST'
+          , (err, iterator) ->
+            iterators[streamName] = iterator
+            done()
+
+      , (err) ->
+        handler = AttakProc.handler processorName, topology, processor, program
+        handler data, context, (err, resultData) ->
+          async.forEachOf next, (nextProc, topic, done) ->
+            streamName = AWSUtils.getStreamName topology.name, processorName, nextProc
+            iterator = iterators[streamName]
+
+            kinesis.getRecords
+              ShardIterator: iterator.ShardIterator
+            , (err, rawRecords) ->
+              iterators[streamName] =
+                ShardIterator: rawRecords.NextShardIterator
+
+              records = []
+              for record in rawRecords.Records
+                dataString = new Buffer(record.Data, 'base64').toString()
+                records.push JSON.parse dataString
+
+              for record in records
+                emitCallback record.topic, record.data, record.opts
+
+              done()
+          , (err) ->
+            callback err
+
     catch e
       console.log "Error running #{processorName}:\n#{e} #{e.stack}"
 

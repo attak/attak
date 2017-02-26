@@ -1,3 +1,4 @@
 node_modules/
 example/attak_runner.js
 example/.env
+simulationdb/
