@@ -1,6 +1,7 @@
 url = require 'url'
 AWS = require 'aws-sdk'
 uuid = require 'uuid'
+chalk = require 'chalk'
 async = require 'async'
 nodePath = require 'path'
 AttakProc = require 'attak-processor'
@@ -92,7 +93,6 @@ AWSUtils =
       PartitionKey: uuid.v1()
 
     kinesis.putRecord params, (err, data) ->
-      console.log "PUT RESULTS", err, data
       callback err, data
 
   triggerProcessor: (program, processor, data, callback) ->
@@ -193,7 +193,42 @@ AWSUtils =
     else
       processor = program.processor || require nodePath.resolve(workingDir, source)
 
-  simulate: (program, topology, processorName, data, emitCallback, callback) ->
+  defaultReport: (eventName, event) ->
+    switch eventName
+      when 'emit'
+        console.log chalk.blue("emit #{event.processor} : #{event.topic}", JSON.stringify(event.data))
+      when 'start'
+        console.log chalk.blue("start #{event.processor}")
+      when 'end'
+        console.log chalk.blue("end #{event.processor} : #{event.end - event.start} ms")
+      when 'err'
+        console.log chalk.blue("#{eventName} #{event.processor} #{event.err.stack}")
+      else
+        console.log chalk.blue("#{eventName} #{event.processor} #{JSON.stringify(event)}")
+
+  getIterators: (kinesis, processorName, nextByTopic, topology, callback) ->
+    iterators = {}
+
+    async.forEachOf nextByTopic, (nextProc, topic, done) ->
+      streamName = AWSUtils.getStreamName topology.name, processorName, nextProc
+
+      kinesis.describeStream
+        StreamName: streamName
+      , (err, streamData) ->
+        shardId = streamData.StreamDescription.Shards[0].ShardId
+
+        kinesis.getShardIterator
+          ShardId: shardId
+          StreamName: streamName
+          ShardIteratorType: 'LATEST'
+        , (err, iterator) ->
+          iterators[streamName] = iterator
+          done()
+
+    , (err) ->
+      callback err, iterators
+
+  simulate: (program, topology, processorName, data, report, triggerId, emitCallback, callback) ->
     results = {}
     workingDir = program.cwd || process.cwd()
     
@@ -206,57 +241,60 @@ AWSUtils =
       topology: topology
       kinesisEndpoint: program.kinesisEndpoint
 
-    try
-      kinesis = new AWS.Kinesis
-        region: program.region || 'us-east-1'
-        endpoint: program.kinesisEndpoint
+    kinesis = new AWS.Kinesis
+      region: program.region || 'us-east-1'
+      endpoint: program.kinesisEndpoint
 
-      next = AWSUtils.nextByTopic topology, processorName
+    nextByTopic = AWSUtils.nextByTopic topology, processorName
 
-      iterators = {}
+    AWSUtils.getIterators kinesis, processorName, nextByTopic, topology, (err, iterators) ->
+      startTime = new Date().getTime()
 
-      async.forEachOf next, (nextProc, topic, done) ->
-        streamName = AWSUtils.getStreamName topology.name, processorName, nextProc
+      report 'start',
+        processor: processorName
+        triggerId: triggerId
+        start: startTime
 
-        kinesis.describeStream
-          StreamName: streamName
-        , (err, streamData) ->
-          shardId = streamData.StreamDescription.Shards[0].ShardId
+      handler = AttakProc.handler processorName, topology, processor, program
+      handler data, context, (err, resultData) ->
+        endTime = new Date().getTime()
 
-          kinesis.getShardIterator
-            ShardId: shardId
-            StreamName: streamName
-            ShardIteratorType: 'LATEST'
-          , (err, iterator) ->
-            iterators[streamName] = iterator
-            done()
+        if err
+          report 'err',
+            processor: processorName
+            triggerId: triggerId
+            start: startTime
+            end: endTime
+            err: err
 
-      , (err) ->
-        handler = AttakProc.handler processorName, topology, processor, program
-        handler data, context, (err, resultData) ->
-          async.forEachOf next, (nextProc, topic, done) ->
-            streamName = AWSUtils.getStreamName topology.name, processorName, nextProc
-            iterator = iterators[streamName]
+          return callback err
 
-            kinesis.getRecords
-              ShardIterator: iterator.ShardIterator
-            , (err, rawRecords) ->
-              iterators[streamName] =
-                ShardIterator: rawRecords.NextShardIterator
+        report 'end',
+          processor: processorName
+          triggerId: triggerId
+          start: startTime
+          end: endTime
 
-              records = []
-              for record in rawRecords.Records
-                dataString = new Buffer(record.Data, 'base64').toString()
-                records.push JSON.parse dataString
+        async.forEachOf nextByTopic, (nextProc, topic, done) ->
+          streamName = AWSUtils.getStreamName topology.name, processorName, nextProc
+          iterator = iterators[streamName]
 
-              for record in records
-                emitCallback record.topic, record.data, record.opts
+          kinesis.getRecords
+            ShardIterator: iterator.ShardIterator
+          , (err, rawRecords) ->
+            iterators[streamName] =
+              ShardIterator: rawRecords.NextShardIterator
 
-              done()
-          , (err) ->
-            callback err
+            records = []
+            for record in rawRecords.Records
+              dataString = new Buffer(record.Data, 'base64').toString()
+              records.push JSON.parse dataString
 
-    catch e
-      console.log "Error running #{processorName}:\n#{e} #{e.stack}"
+            for record in records
+              emitCallback record.topic, record.data, record.opts
+
+            done err
+        , (err) ->
+          callback err
 
 module.exports = AWSUtils

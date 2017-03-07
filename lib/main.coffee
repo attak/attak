@@ -10,9 +10,6 @@ CommUtils = require './comm'
 kinesalite = require 'kinesalite'
 LambdaUtils = require './lambda'
 
-process.on 'uncaughtExcepction', (err) ->
-  console.log "UNCAUGHT", err
-
 Attak =
   __internal:
     version: '0.0.1'
@@ -96,32 +93,31 @@ Attak =
       
       runSimulation = (procName, simData, isTopLevel=true) ->
         numEmitted = 0
-        try
-          AWSUtils.simulate program, topology, procName, simData, (topic, emitData, opts) ->
+        triggerId = uuid.v1()
+        report = program.report || simOpts?.report || AWSUtils.defaultReport
 
-            numEmitted += 1
-            report = program.report || simOpts?.report || (eventName, args...) ->
-              console.log chalk.blue("#{procName} : #{topic}", JSON.stringify(emitData))
+        AWSUtils.simulate program, topology, procName, simData, report, triggerId, (topic, emitData, opts) ->
 
-            report 'emit',
-              data: emitData
-              topic: topic       
-              trace: numEmitted #simData.trace || uuid.v1()
-              processor: procName
-            
-            if allResults[procName] is undefined
-              allResults[procName] = {}
-            allResults[procName][topic] = emitData
-            for stream in topology.streams
-              if stream.from is procName and (stream.topic || topic) is topic
-                runSimulation stream.to, emitData, false
+          numEmitted += 1
+
+          report 'emit',
+            data: emitData
+            topic: topic
+            trace: simData.trace || uuid.v1()
+            emitId: uuid.v1()
+            triggerId: triggerId
+            processor: procName
           
-          , (err, results) ->
-            if isTopLevel
-              console.log "CALLING NEXT", err, results
-              next()
-        catch e
-          console.log "Error running #{procName}:\n#{e} #{e.stack}"
+          if allResults[procName] is undefined
+            allResults[procName] = {}
+          allResults[procName][topic] = emitData
+          for stream in topology.streams
+            if stream.from is procName and (stream.topic || topic) is topic
+              runSimulation stream.to, emitData, false
+        
+        , (err, results) ->
+          if isTopLevel
+            next err
 
       runSimulation processor, data
     , (err) ->
