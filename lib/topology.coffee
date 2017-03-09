@@ -15,7 +15,7 @@ TopologyUtils =
     if topology.processors?.constructor is Function
       topology.processors = topology.processors()
 
-    else if topology.processors.constructor is String
+    else if topology.processors?.constructor is String
       processorPath = nodePath.resolve(workingDir, topology.processors)
       files = fs.readdirSync processorPath
       
