@@ -9,6 +9,7 @@ download = require 'download-github-repo'
 CommUtils = require './comm'
 kinesalite = require 'kinesalite'
 LambdaUtils = require './lambda'
+TopologyUtils = require './topology'
 
 Attak =
   __internal:
@@ -43,24 +44,9 @@ Attak =
         console.log "CAUGHT ERROR", err
 
   simulate: (program, callback) ->
-    workingDir = program.cwd || process.cwd()
-    topology = program.topology || require workingDir
+    topology = TopologyUtils.load program
 
     program.startTime = new Date
-
-    if topology.processors.constructor is String
-      processorPath = nodePath.resolve(workingDir, topology.processors)
-      console.log "PROCESSOR PATH", processorPath
-      files = fs.readdirSync processorPath
-      
-      processors = {}
-      for file in files
-        if file is '.DS_Store'
-          continue
-        name = nodePath.basename file, nodePath.extname(file)
-        processors[name] = "#{topology.processors}/#{file}"
-
-      topology.processors = processors
 
     inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
     input = topology.input || require inputPath
@@ -79,8 +65,13 @@ Attak =
             wrtc.emit 'topology',
               topology: topology
 
+            emitter = wrtc.emit
+            wrtc.reconnect = (wrtc) ->
+              emitter = wrtc.emit
+
             opts =
-              report: wrtc.emit
+              report: () ->
+                emitter arguments...
 
             Attak.runSimulations program, topology, input, opts, callback
 
@@ -113,13 +104,13 @@ Attak =
           allResults[procName][topic] = emitData
           for stream in topology.streams
             if stream.from is procName and (stream.topic || topic) is topic
-              runSimulation stream.to, emitData, false
+              runSimulation stream.to, {data: emitData}, false
         
         , (err, results) ->
           if isTopLevel
             next err
 
-      runSimulation processor, data
+      runSimulation processor, {data: data}
     , (err) ->
       callback? err, allResults
 

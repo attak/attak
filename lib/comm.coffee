@@ -30,7 +30,7 @@ CommUtils =
       initiator: true
       wrtc: wrtc
 
-    peer.on 'signal', (data) ->
+    onSignal = (data) ->
       if data.type isnt 'offer' then return
 
       hasSignal = true
@@ -39,14 +39,26 @@ CommUtils =
       if hasSocket
         CommUtils.emitIdentity program, socket, signal
 
+    peer.on 'signal', onSignal
     peer.on 'data', (data) -> console.log "PEER DATA", data
     peer.on 'error', (err) -> console.log "PEER ERR", err
-    peer.on 'connect', () ->
-      wrtcWrapper =
-        emit: (type, data) ->
+
+    wrtcWrapper =
+      emit: (type, data) ->
+        if peer.writable
           peer.send JSON.stringify
             type: type
             data: data
+
+    peer.on 'connect', () ->
       callback socket, wrtcWrapper
+
+    peer.on 'close', () =>
+      console.log "PEER CLOSED"
+      peer = new Peer
+        initiator: true
+        wrtc: wrtc
+
+      peer.on 'signal', onSignal
 
 module.exports = CommUtils
