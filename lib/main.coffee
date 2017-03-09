@@ -71,7 +71,7 @@ Attak =
 
             opts =
               report: () ->
-                emitter arguments...
+                emitter? arguments...
 
             Attak.runSimulations program, topology, input, opts, callback
 
