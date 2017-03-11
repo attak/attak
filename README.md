@@ -1,19 +1,30 @@
 [![Attak Distributed Computing Framework](./lib/img/readme.png)](http://attak.io)
 
-ATTAK is a framework that helps you string together serverless functions and message queues to create distributed compute topologies. It aims to be platform agnostic, beginning with support for AWS and Google Cloud.
+**Serverless done right**
+
+ATTAK is a framework that helps you string together serverless functions and message queues to create distributed compute topologies. It aims to be platform agnostic, beginning with support for Amazon Web Services and Google Cloud.
+
+**Status**
+
+Pre-alpha, active development software - not for production use. API stabilization expected by summer 2017
+
+**Contributing**
+
+Pull requests and issues welcome.
 
 # Contents
 
 * [Quick Start](#quick-start)
 * [Examples](#examples)
-* [Components](#components)
-  * [Topologies](#topologies)
-  * [Processors](#processors)
-* [Debugging](#debugging)
-  * [Topology Debugger](#topology-debugger)
-  * [CLI Simulation](#cli-simulation)
+* [Topologies](#topologies)
+  * [Processor Definitions](#processor-definitions)
+  * [Stream Definitions](#stream-definitions)
+* [Processors](#processors)
+  * [Handler Functions](#handler-functions)
+  * [Emitting Data](#emitting-data)
+  * [Handler Callback](#handler-callback)
 
-# <a name="quick-start"></a>Quick Start
+# Quick Start
 
 ## Install cli
 
@@ -41,7 +52,7 @@ Visit [the ATTAK ui](http://attak.io#local) and run the simulation with the comm
 
 If you want to run the topology without the UI debugger, simply run
 
-`attak simulate` 
+`attak simulate`
 
 ## Deploy the topology
 
@@ -49,14 +60,12 @@ ATTAK will deploy all processors and streams in the topology.
 
 ```attak deploy```
 
-# <a name="examples"></a>Examples
+# Examples
 
 - [Simple hello world](http://github.com/attak/attak-hello-world) - Emit some text and reverse it
 - [Stream github events](http://github.com/attak/attak-github-events) - Monitor the GitHub Events API for updates and process the results
 
-# <a name="components"></a>Components
-
-## <a name="topologies"></a>Topologies
+# Topologies
 
 An topology is a structure that defines the features of your application. An ATTAK project is meant to be a node package, so we will `require` the directory, and `index.js` (or whatever is specified in `package.json`) will be loaded.
 
@@ -75,11 +84,11 @@ module.exports = {
 }
 ```
 
-### Processor definitions
+## Processor definitions
 
-We have several ways to define processors on our topology.
+There are several ways to define processors on a topology
 
-#### Inline definition
+### Inline handlers
 
 Processor handler functions can be defined inline
 
@@ -96,7 +105,7 @@ module.exports = {
 }
 ```
 
-#### Processor folders
+### Processor folders
 
 If all processors are in a single folder, processors can be set to the folder path.
 
@@ -106,7 +115,7 @@ module.exports = {
 }
 ```
 
-#### Dynamic definitions
+### Dynamic definitions
 
 If we want to dynamically generate processors, we have two options.
 
@@ -142,11 +151,11 @@ module.exports = {
 }
 ```
 
-### Stream definitions
+## Stream definitions
 
 Streams setup the flow of data between processors. They can be defined as a static array or dynamic function.
 
-#### Static stream array
+### Static array
 
 The simplest and most common type of stream definition:
 
@@ -166,9 +175,9 @@ module.exports = {
 }
 ```
 
-## <a name="processors"></a>Processors
+# Processors
 
-### Handler functions
+## Handler functions
 
 Processors are simply functions that can be called with an event and context. It may emit any number of events, and must call the callback when finished. A handler funtion takes the following form:
 
@@ -182,18 +191,16 @@ module.exports = {
 }
 ```
 
-### Emitting data
+## Emitting events
 
-Processors can emit any number of events on any number of topics.
+Processors can emit any number of events on any number of [topics](#topics). Events can optionally contain data of any type.
 
 ```js
 handler: function(event, context, callback) {
-  // Data emitted can be any type, and may be undefined
   context.emit('processing started')
   context.emit('got event', event)
 
-  // If emitting a large number of items, it's safest to
-  // do it asynchronously
+  // If emitting a lot, do it asynchronously
   context.emit('frequent', 'event', function(err) {
     console.log('done emitting')
 
@@ -207,3 +214,52 @@ handler: function(event, context, callback) {
   })
 }
 ```
+
+### Topics
+
+When processors emit 
+
+## Handler callback
+
+The processor's callback argument is important for several reasons
+
+**It signals the end of asynchronous execution**
+
+Serverless functions (which processors run on) are billed by the millisecond. Calling the callback shuts down process execution, which also shuts down billing.
+
+_Note: Emitting data is an asynchronous operation and takes some time. If a processor emits data and then immediately calls the callback, process execution will not halt until all emits are complete._
+
+**It allows the handler function to report errors without crashing.**
+
+Callbacks are one way to report errors. Error handling is an important topic, so it has it's [own section](#error-handling).
+
+## Logs
+
+Processor logs are recorded and stored according to the platform being used. For example, AWS Lambda logs can be found in AWS CloudWatch.
+
+More logging featrues and details coming soon.
+
+## Error handling
+
+Debugging issues on a distributed topology is difficult. When a processor has an error we want to figure out what the stack/context/event data were, and we may even want to know the states of other previous processors.
+
+ATTAK has a built in error handling system. Errors are recorded, retries are configurable, 
+
+By default, errors are not replayed, but rather recorded into an errors queue. By default the queue lasts for 24 hours, but can be configured to persist into DynamoDB or other datastores.
+
+**reported errors**
+
+The [handler callback](#handler-callback) can be called with an error as the first parameter to report an error.
+
+```js
+handler: (event, context, callback) {
+  try {
+    throw new Error 'purposefully caused error'
+  } catch(err) {
+    callback(err)
+  }
+}
+```
+
+This will allow ATTAK to record the error and stop execution as fast as possible. Emits that were still processing before the error will be allowed to finish.
+
