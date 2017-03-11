@@ -2,30 +2,45 @@ attak = require '../'
 
 describe 'simulate', ->
 
-  it 'should simulate a simple topology', (done) ->
-    program =
+  simulateTopology = (topology, input, callback) ->
+    topology.name = "simulationTests"
+    for stream, index in topology.streams
+      if stream.constructor is Array
+        topology.streams[index] =
+          from: stream[0]
+          to: stream[1]
+
+    opts =
       cwd: './test'
       report: ->
-      inputFile: 'test/input.json'
-      topology:
-        input:
-          test_proc: 'test input text'
-        processors:
-          test_proc: (event, context, callback) ->
-            context.emit 'test output', {test: 'output'}
-            callback()
-          other_proc: (event, context, callback) ->
-            context.emit 'modified', {other: event.test}
-            callback()
-        streams: [
-          {
-            to: 'other_proc',
-            from: 'test_proc'
-          }
-        ]
+      input: input
+      topology: topology
 
-    attak.simulate program, (err, results) ->
-      if results.other_proc?['modified']?.other is 'output'
+    attak.simulate opts, (err, results) ->
+      callback err, results
+
+  it 'should simulate a simple topology', (done) ->
+    topology =
+      processors:
+        testProc: (event, context, callback) ->
+          context.emit 'test output', {test: 'output'}
+          callback()
+        otherProc: (event, context, callback) ->
+          context.emit 'modified', {other: event.test}
+          callback()
+        finalProc: (event, context, callback) ->
+          context.emit 'final'
+          callback()
+      streams: [
+        ['testProc', 'otherProc']
+        ['otherProc', 'finalProc']
+      ]
+
+    input =
+      testProc: 'test input text'
+
+    simulateTopology topology, input, (err, results) ->
+      if results.otherProc?['modified']?.other is 'output'
         done()
       else
         done 'incorrect output'

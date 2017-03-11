@@ -10,6 +10,7 @@ CommUtils = require './comm'
 kinesalite = require 'kinesalite'
 LambdaUtils = require './lambda'
 TopologyUtils = require './topology'
+SimulationUtils = require './simulation'
 
 Attak =
   __internal:
@@ -44,12 +45,15 @@ Attak =
         console.log "CAUGHT ERROR", err
 
   simulate: (program, callback) ->
-    topology = TopologyUtils.load program
+    topology = TopologyUtils.loadTopology program
 
     program.startTime = new Date
 
-    inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
-    input = topology.input || require inputPath
+    if program.input
+      input = program.input
+    else
+      inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
+      input = require inputPath
 
     kinesaliteServer = kinesalite
       # ssl: true
@@ -80,15 +84,22 @@ Attak =
 
   runSimulations: (program, topology, input, simOpts, callback) ->
     allResults = {}
+
     async.eachOf input, (data, processor, next) ->
-      
-      runSimulation = (procName, simData, isTopLevel=true) ->
+      eventQueue = [{processor: processor, input: data}]
+      procName = undefined
+      simData = undefined
+      async.whilst () ->
+        nextEvent = eventQueue.shift()
+        procName = nextEvent?.processor
+        simData = nextEvent?.input
+        return nextEvent?
+      , (done) ->
         numEmitted = 0
         triggerId = uuid.v1()
-        report = program.report || simOpts?.report || AWSUtils.defaultReport
+        report = program.report || simOpts?.report || SimulationUtils.defaultReport
 
-        AWSUtils.simulate program, topology, procName, simData, report, triggerId, (topic, emitData, opts) ->
-
+        SimulationUtils.simulate program, topology, procName, simData, report, triggerId, (topic, emitData, opts) ->
           numEmitted += 1
 
           report 'emit',
@@ -104,13 +115,14 @@ Attak =
           allResults[procName][topic] = emitData
           for stream in topology.streams
             if stream.from is procName and (stream.topic || topic) is topic
-              runSimulation stream.to, {data: emitData}, false
+              eventQueue.push
+                processor: stream.to
+                input: emitData
         
         , (err, results) ->
-          if isTopLevel
-            next err
-
-      runSimulation processor, {data: data}
+          done err
+      , (err) ->
+        next()
     , (err) ->
       callback? err, allResults
 
