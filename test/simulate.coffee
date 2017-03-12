@@ -36,15 +36,9 @@ describe 'simulate', ->
   it 'should simulate a simple topology (smoke test)', (done) ->
     topology =
       processors:
-        testProc: (event, context, callback) ->
-          context.emit 'test output', {test: 'output'}
-          callback()
-        otherProc: (event, context, callback) ->
-          context.emit 'modified', {other: event.test}
-          callback()
-        finalProc: (event, context, callback) ->
-          context.emit 'final'
-          callback()
+        testProc: (event, context, callback) -> context.emit 'test output', {test: 'output'}, callback
+        otherProc: (event, context, callback) -> context.emit 'modified', {other: event.test}, callback
+        finalProc: (event, context, callback) -> context.emit 'final', null, callback
       streams: [
         ['testProc', 'otherProc']
         ['otherProc', 'finalProc']
@@ -62,12 +56,8 @@ describe 'simulate', ->
   it 'should send data between connected processors', (done) ->
     topology =
       processors:
-        testProc: (event, context, callback) ->
-          context.emit 'test output', {test: 'output'}
-          callback()
-        otherProc: (event, context, callback) ->
-          context.emit 'modified', {other: event.test}
-          callback()
+        testProc: (event, context, callback) -> context.emit 'test output', {test: 'output'}, callback
+        otherProc: (event, context, callback) -> context.emit 'modified', {other: event.test}, callback
       streams: [
         ['testProc', 'otherProc']
       ]
@@ -84,15 +74,9 @@ describe 'simulate', ->
   it 'should not send data to processors that stream from a different topic', (done) ->
     topology =
       processors:
-        testProc: (event, context, callback) ->
-          context.emit 'test output', {test: 'output'}
-          callback()
-        otherProc: (event, context, callback) ->
-          context.emit 'modified', {other: event.test}
-          callback()
-        finalProc: (event, context, callback) ->
-          context.emit 'final'
-          callback()
+        testProc: (event, context, callback) -> context.emit 'test output', {test: 'output'}, callback
+        otherProc: (event, context, callback) -> context.emit 'modified', {other: event.test}, callback
+        finalProc: (event, context, callback) -> context.emit 'final', null, callback
       streams: [
         ['testProc', 'otherProc', 'non existent topic']
         ['otherProc', 'finalProc']
