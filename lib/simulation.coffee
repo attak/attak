@@ -1,4 +1,5 @@
 AWS = require 'aws-sdk'
+uuid = require 'uuid'
 async = require 'async'
 AWSUtils = require './aws'
 AttakProc = require 'attak-processor'
@@ -86,5 +87,50 @@ SimulationUtils =
             done err
         , (err) ->
           callback err
+
+  runSimulations: (program, topology, input, simOpts, callback) ->
+    allResults = {}
+
+    async.eachOf input, (data, processor, next) ->
+      eventQueue = [{processor: processor, input: data}]
+      procName = undefined
+      simData = undefined
+      async.whilst () ->
+        nextEvent = eventQueue.shift()
+        procName = nextEvent?.processor
+        simData = nextEvent?.input
+        return nextEvent?
+      , (done) ->
+        numEmitted = 0
+        triggerId = uuid.v1()
+        report = program.report || simOpts?.report || SimulationUtils.defaultReport
+
+        SimulationUtils.simulate program, topology, procName, simData, report, triggerId, (topic, emitData, opts) ->
+          numEmitted += 1
+
+          report 'emit',
+            data: emitData
+            topic: topic
+            trace: simData.trace || uuid.v1()
+            emitId: uuid.v1()
+            triggerId: triggerId
+            processor: procName
+          
+          if allResults[procName] is undefined
+            allResults[procName] = {}
+          allResults[procName][topic] = emitData
+          for stream in topology.streams
+            if stream.from is procName and (stream.topic || topic) is topic
+              eventQueue.push
+                processor: stream.to
+                input: emitData
+
+        
+        , (err, results) ->
+          done err
+      , (err) ->
+        next()
+    , (err) ->
+      callback? err, allResults
 
 module.exports = SimulationUtils

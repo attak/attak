@@ -183,6 +183,9 @@ AWSUtils =
         kinesis.describeStream
           StreamName: streamName
         , (err, streamData) ->
+          if err
+            return done(err)
+
           shardId = streamData.StreamDescription.Shards[0].ShardId
 
           kinesis.getShardIterator

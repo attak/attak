@@ -1,6 +1,4 @@
 fs = require 'fs'
-uuid = require 'uuid'
-chalk = require 'chalk'
 async = require 'async'
 nodePath = require 'path'
 AWSUtils = require './aws'
@@ -13,11 +11,12 @@ TopologyUtils = require './topology'
 SimulationUtils = require './simulation'
 
 Attak =
-  __internal:
-    version: '0.0.1'
+  utils:
     aws: AWSUtils
     comm: CommUtils
     lambda: LambdaUtils
+    topology: TopologyUtils
+    simulation: SimulationUtils
 
   init: (program, callback) ->
     console.log "INIT"
@@ -77,54 +76,10 @@ Attak =
               report: () ->
                 emitter? arguments...
 
-            Attak.runSimulations program, topology, input, opts, callback
+            SimulationUtils.runSimulations program, topology, input, opts, callback
 
         else
-          Attak.runSimulations program, topology, input, {}, callback
-
-  runSimulations: (program, topology, input, simOpts, callback) ->
-    allResults = {}
-
-    async.eachOf input, (data, processor, next) ->
-      eventQueue = [{processor: processor, input: data}]
-      procName = undefined
-      simData = undefined
-      async.whilst () ->
-        nextEvent = eventQueue.shift()
-        procName = nextEvent?.processor
-        simData = nextEvent?.input
-        return nextEvent?
-      , (done) ->
-        numEmitted = 0
-        triggerId = uuid.v1()
-        report = program.report || simOpts?.report || SimulationUtils.defaultReport
-
-        SimulationUtils.simulate program, topology, procName, simData, report, triggerId, (topic, emitData, opts) ->
-          numEmitted += 1
-
-          report 'emit',
-            data: emitData
-            topic: topic
-            trace: simData.trace || uuid.v1()
-            emitId: uuid.v1()
-            triggerId: triggerId
-            processor: procName
-          
-          if allResults[procName] is undefined
-            allResults[procName] = {}
-          allResults[procName][topic] = emitData
-          for stream in topology.streams
-            if stream.from is procName and (stream.topic || topic) is topic
-              eventQueue.push
-                processor: stream.to
-                input: emitData
-        
-        , (err, results) ->
-          done err
-      , (err) ->
-        next()
-    , (err) ->
-      callback? err, allResults
+          SimulationUtils.runSimulations program, topology, input, {}, callback
 
   trigger: (program, callback) ->
     topology = require (program.cwd || process.cwd())

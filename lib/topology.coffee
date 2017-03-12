@@ -7,11 +7,12 @@ TopologyUtils =
     if topology.streams.constructor is Function
       topology.streams = topology.streams()
     
-    for stream in topology.streams
+    for stream, index in topology.streams
       if stream.constructor is Array
-        stream =
+        topology.streams[index] =
           from: stream[0]
           to: stream[1]
+          topic: stream[2]
 
     if topology.processors?.constructor is Function
       topology.processors = topology.processors()
