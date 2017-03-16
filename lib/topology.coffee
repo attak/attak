@@ -1,3 +1,4 @@
+nodePath = require 'path'
 
 TopologyUtils =
   loadTopology: (opts) ->
@@ -38,7 +39,7 @@ TopologyUtils =
       processors = {}
       for stream in topology.streams
         if processors[stream.to] is undefined
-          processors[stream.to] = stream.to        
+          processors[stream.to] = stream.to
         if processors[stream.from] is undefined
           processors[stream.from] = stream.from
 
@@ -60,12 +61,14 @@ TopologyUtils =
 
     if procData.constructor is String
       source = procData
-    else if procData.constructor is Function 
+    else if procData?.constructor is Function or typeof(procData?.constructor) is 'function'
       source = procData
     else
       source = procData.source
 
-    if source.constructor is Function
+    if source.handler
+      processor = source
+    else if source.constructor is Function
       processor = {handler: source}
     else
       processor = program.processor || require nodePath.resolve(workingDir, source)

@@ -98,14 +98,22 @@ Attak =
       , ->
         callback? err
 
-  deploy: (program, callback) ->
-    topology = require (program.cwd || process.cwd())
+  deploy: (opts, callback) ->
+    topology = TopologyUtils.loadTopology opts
+    
+    if topology.api
+      LambdaUtils.deployProcessors topology, opts, (err, lambdas) ->
+        AWSUtils.deployStreams topology, opts, lambdas, (err, streams) ->
+          gatewayName = "#{topology.name}-#{opts.environment || 'development'}"
+          gatewayOpts =
+            name: gatewayName
+            environment: opts.environment
 
-    if topology.name is undefined
-      throw new Error 'topology.name is undefined'
-
-    LambdaUtils.deployProcessors topology, program, (err, lambdas) ->
-      AWSUtils.deployStreams topology, program, lambdas, (err, streams) ->
-        callback? err, {lambdas, streams}
+          AWSUtils.setupGateway topology.api, {name: gatewayName}, (err, gateway) ->
+            callback? err, {lambdas, streams, gateway}
+    else
+      LambdaUtils.deployProcessors topology, opts, (err, lambdas) ->
+          AWSUtils.deployStreams topology, opts, lambdas, (err, streams) ->
+            callback? err, {lambdas, streams}
 
 module.exports = Attak

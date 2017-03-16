@@ -1,5 +1,6 @@
 AWS = require 'aws-sdk'
 uuid = require 'uuid'
+chalk = require 'chalk'
 async = require 'async'
 AWSUtils = require './aws'
 AttakProc = require 'attak-processor'
@@ -105,6 +106,10 @@ SimulationUtils =
         triggerId = uuid.v1()
         report = program.report || simOpts?.report || SimulationUtils.defaultReport
 
+        if allResults[procName] is undefined
+          allResults[procName] =
+            emits: {}
+
         SimulationUtils.simulate program, topology, procName, simData, report, triggerId, (topic, emitData, opts) ->
           numEmitted += 1
 
@@ -115,18 +120,24 @@ SimulationUtils =
             emitId: uuid.v1()
             triggerId: triggerId
             processor: procName
-          
-          if allResults[procName] is undefined
-            allResults[procName] = {}
-          allResults[procName][topic] = emitData
+
+          if allResults[procName].emits[topic] is undefined
+            allResults[procName].emits[topic] = []
+
+          allResults[procName].emits[topic].push emitData
+          if allResults[procName].emits[topic].length > 1000
+            allResults[procName].emits[topic].shift()
+
           for stream in topology.streams
             if stream.from is procName and (stream.topic || topic) is topic
               eventQueue.push
                 processor: stream.to
                 input: emitData
 
-        
         , (err, results) ->
+          console.log "PROC CALLBACK", procName, err, results
+          allResults[procName].callback = {err, results}
+
           done err
       , (err) ->
         next()

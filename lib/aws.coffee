@@ -13,7 +13,269 @@ AWS.config.credentials = credentials
 AWS.config.apiVersions =
   kinesis: '2013-12-02'
 
+padding =
+  "201": "",
+  "301": " ",
+  "302": "  "
+
+locationRegex = "https://.*|http://.*|/.*"
+responseDelimeter = "__lambdaexpress_delim__"
+
+selectionPatterns =
+  responseDelimeter: responseDelimeter
+  padding: padding
+  regex:
+    "404": "STATUS404" + responseDelimeter + ".*",
+    "201": padding["201"] + locationRegex,
+    "301": padding["301"] + locationRegex,
+    "302": padding["302"] + locationRegex
+
+integrationResponses =
+  error: """
+    #set ($errorMessage = $input.path('$.errorMessage'))
+    #set ($response = $errorMessage.split("#{selectionPatterns.responseDelimeter}"))
+    $response[1]
+  """,
+
+  standard: """
+    #set ($message = $input.path('$'))
+    #set ($response = $message.split("#{selectionPatterns.responseDelimeter}"))
+    $response[1]
+  """
+
+statusCodesMap = 
+  '200':
+    selectionPattern: null
+    responseTemplates: 'application/json': integrationResponses.standard
+  '201':
+    selectionPattern: selectionPatterns.regex['201']
+    responseTemplates: 'application/json': ''
+  '301':
+    selectionPattern: selectionPatterns.regex['301']
+    responseTemplates: 'application/json': ''
+  '302':
+    selectionPattern: selectionPatterns.regex['302']
+    responseTemplates: 'application/json': ''
+  '404':
+    selectionPattern: selectionPatterns.regex['404']
+    responseTemplates: 'application/json': integrationResponses.error
+
+methodResponsesParameters = 
+  '200': null
+  '201': 'method.response.header.Location': true
+  '301': 'method.response.header.Location': true
+  '302': 'method.response.header.Location': true
+  '404': null
+
+integrationResponsesParameters = 
+  '200': null
+  '201': 'method.response.header.Location': 'integration.response.body.errorMessage'
+  '301': 'method.response.header.Location': 'integration.response.body.errorMessage'
+  '302': 'method.response.header.Location': 'integration.response.body.errorMessage'
+  '404': null
+
+integrationTemplate = """
+  {
+    "body" : $input.json('$'),
+    "headers": {
+      #foreach($header in $input.params().header.keySet())
+      "$header": "$util.escapeJavaScript($input.params().header.get($header))" #if($foreach.hasNext),#end
+      #end
+    },
+    "method": "$context.httpMethod",
+    "params": {
+      #foreach($param in $input.params().path.keySet())
+      "$param": "$util.escapeJavaScript($input.params().path.get($param))" #if($foreach.hasNext),#end
+      #end
+    },
+    "query": {
+      #foreach($queryParam in $input.params().querystring.keySet())
+      "$queryParam": "$util.escapeJavaScript($input.params().querystring.get($queryParam))" #if($foreach.hasNext),#end
+      #end
+    }
+  }
+"""
+
 AWSUtils =
+  getApiByName: (name, opts, callback) ->
+    gateway = new AWS.APIGateway
+      region: opts.region || 'us-east-1'
+
+    gateway.getRestApis (err, results) ->
+      if err then return callback(err)
+      for result in results.items
+        if result.name is name
+          return callback null, result
+      callback()
+
+  getApis: (opts={}, callback) ->
+    gateway = new AWS.APIGateway
+      region: opts.region || 'us-east-1'
+
+    gateway.getRestApis (err, results) ->
+      console.log "GET REST APIS", err, results
+      callback err, results
+
+  setupGateway: (handler, opts, callback) ->
+    region = opts.region || 'us-east-1'
+    environment = opts.environment || 'development'
+    functionName = "#{handler}-#{environment}"
+
+    apiGateway = new AWS.APIGateway
+      region: region
+
+    lambda = new AWS.Lambda
+      region: region
+
+    async.waterfall [
+      (done) ->
+        console.log "CREATE GATEWAY"
+        # done null, {id: '6bh1ll9ev0'}
+
+        params =
+          name: opts.name
+
+        apiGateway.createRestApi params, (err, gateway) ->   
+          done err, {gateway}
+      ({gateway}, done) ->
+        console.log "SETUP ROOT RESOURCE", gateway
+        params =
+          restApiId: gateway.id
+
+        apiGateway.getResources params, (err, results) ->
+          root = results?.items?[0]
+          done err, {gateway, root}
+      ({gateway, root}, done) ->
+        console.log "GET ACCOUNT NUMBER", gateway, root
+        iam = new AWS.IAM
+          region: region
+
+        iam.getUser (err, results) ->
+          account = results?.User?.UserId
+          done err, {gateway, root, account}
+      ({gateway, root, account}, done) ->
+        console.log "CREATE 'ANY' METHOD", gateway, root, account
+
+        params =
+          restApiId: gateway.id
+          resourceId: root.id
+          httpMethod: 'ANY'
+          authorizationType: "NONE"
+
+        apiGateway.putMethod params, (err, results) ->
+          console.log "CREATE METHOD RESULTS", results
+          done err, {gateway, root, account}
+    
+      ({gateway, root, account}, done) ->
+        async.forEachOfSeries statusCodesMap, (defs, code, next) ->
+          params =
+            restApiId: gateway.id
+            resourceId: root.id
+            httpMethod: 'ANY'
+            statusCode: code
+            responseModels: 'application/json': 'Empty'
+            responseParameters: methodResponsesParameters[code]
+          
+          apiGateway.putMethodResponse params, (err, results) ->
+            console.log "CREATE METHOD RESPONSE RESULTS", err, results
+            next err
+        , (err) ->
+          done err, {gateway, root, account}
+      
+      ({gateway, root, account}, done) ->
+        functionArn = "arn:aws:lambda:#{region}:#{account}:function:#{functionName}"
+
+        params =
+          restApiId: gateway.id,
+          resourceId: root.id,
+          httpMethod: 'ANY',
+          integrationHttpMethod: "POST",
+          type: "AWS",
+          uri: "arn:aws:apigateway:#{region}:lambda:path/2015-03-31/functions/#{functionArn}/invocations"
+          requestTemplates:
+            "application/json" : integrationTemplate
+
+        apiGateway.putIntegration params, (err, results) ->
+          console.log "CREATE INTEGRATION RESULTS", err, results
+          done err, {gateway, root, account}
+
+      ({gateway, root, account}, done) ->
+        async.forEachOfSeries statusCodesMap, (defs, code, next) ->
+          params =
+            restApiId: gateway.id
+            resourceId: root.id
+            httpMethod: 'ANY'
+            statusCode: code,
+            selectionPattern: statusCodesMap[code].selectionPattern,
+            # responseTemplates: statusCodesMap[code].responseTemplates,
+            # responseParameters: integrationResponsesParameters[code]
+          
+          apiGateway.putIntegrationResponse params, (err, results) ->
+            console.log "CREATE INTEGRATION RESPONSE RESULTS", code, err, results
+            next err
+
+        , (err) ->
+          done err, {gateway, root, account}
+
+      ({gateway, root, account}, done) ->
+        params =
+          Action: "lambda:InvokeFunction"
+          Principal: "apigateway.amazonaws.com"
+          SourceArn: "arn:aws:execute-api:#{region}:#{account}:#{gateway.id}/*/*/"
+          StatementId: "apigateway-#{gateway.name}-#{+ new Date}"
+          FunctionName: functionName
+
+        lambda.addPermission params, (err, results) ->
+          console.log "ADD STAR PERMISSIONS RESULTS", results
+          done err, {gateway, root, account}
+
+      ({gateway, root, account}, done) ->
+        params =
+          Action: "lambda:InvokeFunction"
+          Principal: "apigateway.amazonaws.com"
+          SourceArn: "arn:aws:execute-api:#{region}:#{account}:#{gateway.id}/#{environment}/ANY/"
+          StatementId: "apigateway-#{gateway.name}-#{+ new Date}"
+          FunctionName: functionName
+
+        lambda.addPermission params, (err, results) ->
+          console.log "ADD PERMISSIONS RESULTS", results, params
+          done err, {gateway, root, account}
+
+      ({gateway, root, account}, done) ->
+        params =
+          restApiId: gateway.id
+          stageName: environment
+
+        apiGateway.createDeployment params, (err, deployment) ->
+          console.log "DEPLOYMENT RESULTS", err, deployment
+          done err, {gateway, root, account, deployment}
+
+      ({gateway, root, account, deployment}, done) ->
+        params =
+          restApiId: gateway.id
+          deploymentId: deployment.id
+
+        apiGateway.getStages params, (err, results) ->
+          existing = undefined
+          for stage in results.item
+            if stage.stageName is environment
+              existing = stage
+              break
+
+          if existing
+            done null, {gateway, root, account, deployment}
+          else
+            params.stageName = environment
+            apiGateway.createStage params, (err, results) ->
+              console.log "CREATE STAGE RESULTS", err, results
+              done err, {gateway, root, account, deployment}
+
+    ], (err, results) ->
+      {gateway, root, account} = results || {}
+      console.log "CREATE GATEWAY RESULTS", err, results
+      console.log "GATWAY RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
+      callback err, results
+
   getStreamName: (topologyName, sourceProcessor, destProcessor) ->
     "#{topologyName}-#{sourceProcessor}-#{destProcessor}"
 
@@ -196,8 +458,8 @@ AWSUtils =
             iterators[streamName] = iterator
             done()
 
-      catch e
-        console.log 'CAUGHT ERR', e
+      catch err
+        console.log 'CAUGHT ERR', err
       
     , (err) ->
       callback err, iterators
