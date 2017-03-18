@@ -39,7 +39,6 @@ LambdaUtils =
       """
 
       lambda.deploy prog, (err, results) ->
-        console.log "DEPLOY RESULTS", err, results
         for result in results
           retval[result.FunctionName] = result
 

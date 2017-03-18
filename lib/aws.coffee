@@ -6,6 +6,9 @@ async = require 'async'
 nodePath = require 'path'
 kinesisStreams = require 'kinesis'
 
+DEBUG = false
+log = -> if DEBUG then console.log arguments...
+
 credentials = new AWS.SharedIniFileCredentials
   profile: 'default'
 
@@ -117,7 +120,7 @@ AWSUtils =
       callback err, results
 
   setupGateway: (handler, opts, callback) ->
-    console.log "SETUP GATEWAY", handler, opts
+    log "SETUP GATEWAY", handler, opts
 
     region = opts.region || 'us-east-1'
     environment = opts.environment || 'development'
@@ -135,7 +138,7 @@ AWSUtils =
           limit: 500
 
         apiGateway.getRestApis params, (err, apis) ->   
-          console.log "EXISTING APIS", err, apis
+          log "EXISTING APIS", err, apis
           done err, {apis}
       ({apis}, done) ->
         existing = undefined
@@ -149,20 +152,20 @@ AWSUtils =
             restApiId: existing.id
 
           apiGateway.deleteRestApi params, (err, results) ->
-            console.log "DELETED API", existing.id, err, results
+            log "DELETED API", existing.id, err, results
             done()
         else
-          console.log "API DOESNT EXIST YET"
+          log "API DOESNT EXIST YET"
           done()
       (done) ->
         params =
           name: opts.name
 
         apiGateway.createRestApi params, (err, gateway) ->
-          console.log "CREATED API", err, gateway
+          log "CREATED API", err, gateway
           done err, {gateway}
       ({gateway}, done) ->
-        console.log "SETUP ROOT RESOURCE", gateway
+        log "SETUP ROOT RESOURCE", gateway
         params =
           restApiId: gateway.id
 
@@ -170,7 +173,7 @@ AWSUtils =
           root = results?.items?[0]
           done err, {gateway, root}
       ({gateway, root}, done) ->
-        console.log "GET ACCOUNT NUMBER", gateway, root
+        log "GET ACCOUNT NUMBER", gateway, root
         iam = new AWS.IAM
           region: region
 
@@ -178,7 +181,7 @@ AWSUtils =
           account = results?.User?.UserId
           done err, {gateway, root, account}
       ({gateway, root, account}, done) ->
-        console.log "CREATE 'ANY' METHOD", gateway, root, account
+        log "CREATE 'ANY' METHOD", gateway, root, account
 
         params =
           restApiId: gateway.id
@@ -187,7 +190,7 @@ AWSUtils =
           authorizationType: "NONE"
 
         apiGateway.putMethod params, (err, results) ->
-          console.log "CREATE METHOD RESULTS", results
+          log "CREATE METHOD RESULTS", results
           done err, {gateway, root, account}
     
       ({gateway, root, account}, done) ->
@@ -201,7 +204,7 @@ AWSUtils =
             responseParameters: methodResponsesParameters[code]
           
           apiGateway.putMethodResponse params, (err, results) ->
-            console.log "CREATE METHOD RESPONSE RESULTS", err, results
+            log "CREATE METHOD RESPONSE RESULTS", err, results
             next err
         , (err) ->
           done err, {gateway, root, account}
@@ -210,18 +213,18 @@ AWSUtils =
         functionArn = "arn:aws:lambda:#{region}:#{account}:function:#{functionName}"
 
         params =
+          uri: "arn:aws:apigateway:#{region}:lambda:path/2015-03-31/functions/#{functionArn}/invocations"
+          type: "AWS_PROXY",
           restApiId: gateway.id,
           resourceId: root.id,
           httpMethod: 'ANY',
-          integrationHttpMethod: "POST",
           passthroughBehavior: "when_no_match",
-          type: "AWS_PROXY",
-          uri: "arn:aws:apigateway:#{region}:lambda:path/2015-03-31/functions/#{functionArn}/invocations"
+          integrationHttpMethod: "POST",
           requestTemplates:
             "application/json" : integrationTemplate
 
         apiGateway.putIntegration params, (err, results) ->
-          console.log "CREATE INTEGRATION RESULTS", err, results
+          log "CREATE INTEGRATION RESULTS", err, results
           done err, {gateway, root, account}
 
       ({gateway, root, account}, done) ->
@@ -236,7 +239,7 @@ AWSUtils =
             responseParameters: integrationResponsesParameters[code]
           
           apiGateway.putIntegrationResponse params, (err, results) ->
-            console.log "CREATE INTEGRATION RESPONSE RESULTS", code, err, results
+            log "CREATE INTEGRATION RESPONSE RESULTS", code, err, results
             next err
 
         , (err) ->
@@ -251,7 +254,7 @@ AWSUtils =
           FunctionName: functionName
 
         lambda.addPermission params, (err, results) ->
-          console.log "ADD STAR PERMISSIONS RESULTS", results
+          log "ADD STAR PERMISSIONS RESULTS", results
           done err, {gateway, root, account}
 
       ({gateway, root, account}, done) ->
@@ -263,7 +266,7 @@ AWSUtils =
           FunctionName: functionName
 
         lambda.addPermission params, (err, results) ->
-          console.log "ADD PERMISSIONS RESULTS", results, params
+          log "ADD PERMISSIONS RESULTS", results, params
           done err, {gateway, root, account}
 
       ({gateway, root, account}, done) ->
@@ -272,7 +275,7 @@ AWSUtils =
           stageName: environment
 
         apiGateway.createDeployment params, (err, deployment) ->
-          console.log "DEPLOYMENT RESULTS", err, deployment
+          log "DEPLOYMENT RESULTS", err, deployment
           done err, {gateway, root, account, deployment}
 
       ({gateway, root, account, deployment}, done) ->
@@ -292,13 +295,13 @@ AWSUtils =
           else
             params.stageName = environment
             apiGateway.createStage params, (err, results) ->
-              console.log "CREATE STAGE RESULTS", err, results
+              log "CREATE STAGE RESULTS", err, results
               done err, {gateway, root, account, deployment}
 
     ], (err, results) ->
       {gateway, root, account} = results || {}
-      console.log "CREATE GATEWAY RESULTS", err, results
-      console.log "GATWAY RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
+      log "CREATE GATEWAY RESULTS", err, results
+      console.log "API RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
       callback err, results
 
   getStreamName: (topologyName, sourceProcessor, destProcessor) ->
