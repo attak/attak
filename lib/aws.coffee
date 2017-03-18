@@ -117,6 +117,8 @@ AWSUtils =
       callback err, results
 
   setupGateway: (handler, opts, callback) ->
+    console.log "SETUP GATEWAY", handler, opts
+
     region = opts.region || 'us-east-1'
     environment = opts.environment || 'development'
     functionName = "#{handler}-#{environment}"
@@ -129,13 +131,35 @@ AWSUtils =
 
     async.waterfall [
       (done) ->
-        console.log "CREATE GATEWAY"
-        # done null, {id: '6bh1ll9ev0'}
+        params =
+          limit: 500
 
+        apiGateway.getRestApis params, (err, apis) ->   
+          console.log "EXISTING APIS", err, apis
+          done err, {apis}
+      ({apis}, done) ->
+        existing = undefined
+        for api in apis.items
+          if api.name is opts.name
+            existing = api
+            break
+
+        if existing
+          params =
+            restApiId: existing.id
+
+          apiGateway.deleteRestApi params, (err, results) ->
+            console.log "DELETED API", existing.id, err, results
+            done()
+        else
+          console.log "API DOESNT EXIST YET"
+          done()
+      (done) ->
         params =
           name: opts.name
 
-        apiGateway.createRestApi params, (err, gateway) ->   
+        apiGateway.createRestApi params, (err, gateway) ->
+          console.log "CREATED API", err, gateway
           done err, {gateway}
       ({gateway}, done) ->
         console.log "SETUP ROOT RESOURCE", gateway
@@ -190,7 +214,8 @@ AWSUtils =
           resourceId: root.id,
           httpMethod: 'ANY',
           integrationHttpMethod: "POST",
-          type: "AWS",
+          passthroughBehavior: "when_no_match",
+          type: "AWS_PROXY",
           uri: "arn:aws:apigateway:#{region}:lambda:path/2015-03-31/functions/#{functionArn}/invocations"
           requestTemplates:
             "application/json" : integrationTemplate
@@ -207,8 +232,8 @@ AWSUtils =
             httpMethod: 'ANY'
             statusCode: code,
             selectionPattern: statusCodesMap[code].selectionPattern,
-            # responseTemplates: statusCodesMap[code].responseTemplates,
-            # responseParameters: integrationResponsesParameters[code]
+            responseTemplates: statusCodesMap[code].responseTemplates,
+            responseParameters: integrationResponsesParameters[code]
           
           apiGateway.putIntegrationResponse params, (err, results) ->
             console.log "CREATE INTEGRATION RESPONSE RESULTS", code, err, results
