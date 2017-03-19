@@ -87,7 +87,7 @@ SimulationUtils =
 
             done err
         , (err) ->
-          callback err
+          callback err, resultData
 
   runSimulations: (program, topology, input, simOpts, callback) ->
     allResults = {}
@@ -135,7 +135,6 @@ SimulationUtils =
                 input: emitData
 
         , (err, results) ->
-          console.log "PROC CALLBACK", procName, err, results
           allResults[procName].callback = {err, results}
 
           done err

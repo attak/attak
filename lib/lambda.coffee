@@ -20,22 +20,14 @@ LambdaUtils =
 
       fs.writeFileSync runnerPath, """
         'use strict'
-        var topology = #{JSON.stringify(topology)}
-        var procName = '#{name}'
-        if (#{processor.source?}) {
-          var source = require('#{processor.source}')
-        } else {
-          try {
-            var localTopo = require('.')
-            var source = localTopo.processors[procName]
-            console.log("SOURCE IS", source.handler || source)
-          } catch(err) {
-            console.log("CAUGHT ERROR", err, err.stack)
-          }
-        }
         var attak = require('attak-processor')
-        var opts = JSON.parse('#{JSON.stringify({region: program.region})}')
-        exports.handler = attak.handler(procName, topology, source, opts)
+        
+        var procName = '#{name}'
+        var topology = attak.utils.topology.loadTopology({})
+        var impl = attak.getProcessor({}, topology, procName)
+        var opts = #{JSON.stringify({region: program.region})}
+
+        exports.handler = attak.handler(procName, topology, impl, opts)
       """
 
       lambda.deploy prog, (err, results) ->

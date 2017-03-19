@@ -48,7 +48,7 @@ describe 'simulate', ->
       testProc: 'test input text'
 
     simulateTopology topology, input, (err, results) ->
-      if results.otherProc?['modified']?.other is 'output'
+      if results.otherProc?.emits?['modified']?[0]?.other is 'output'
         done()
       else
         done 'incorrect output'
@@ -66,7 +66,7 @@ describe 'simulate', ->
       testProc: 'test input text'
 
     simulateTopology topology, input, (err, results) ->
-      if results.testProc?['test output']?.test is 'output'
+      if results.testProc?.emits?['test output']?[0]?.test is 'output'
         done()
       else
         done 'incorrect output'
@@ -90,3 +90,40 @@ describe 'simulate', ->
         done 'emitting data to processors on the wrong topic'
       else
         done()
+
+  it 'should send back callback data', (done) ->
+    topology =
+      processors:
+        testProc: (event, context, callback) -> callback null, {ok: true}
+      streams: []
+
+    input =
+      testProc: 'test input text'
+
+    simulateTopology topology, input, (err, results) ->
+      resp = results.testProc?.callback?.results?.body
+      if JSON.parse(resp).ok
+        done()
+      else
+        done 'didn\'t get callback data'
+
+  it 'local processor invocation should work', (done) ->
+    topology =
+      processors:
+        testProc: (event, context, callback) ->
+          context.invokeLocal 'otherProc', {ok: true}, (err, results) ->
+            callback null, results
+        otherProc: (event, context, callback) ->
+          callback null, event
+
+      streams: []
+
+    input =
+      testProc: 'test input text'
+
+    simulateTopology topology, input, (err, results) ->
+      resp = results.testProc?.callback?.results?.body
+      if JSON.parse(resp).ok
+        done()
+      else
+        done 'didn\'t get callback data'
