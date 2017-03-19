@@ -164,25 +164,37 @@ AWSUtils =
         apiGateway.createRestApi params, (err, gateway) ->
           log "CREATED API", err, gateway
           done err, {gateway}
+
       ({gateway}, done) ->
-        log "SETUP ROOT RESOURCE", gateway
         params =
           restApiId: gateway.id
 
         apiGateway.getResources params, (err, results) ->
           root = results?.items?[0]
+          log "GOT ROOT RESOURCE", err, root
           done err, {gateway, root}
+
       ({gateway, root}, done) ->
-        log "GET ACCOUNT NUMBER", gateway, root
+        params =
+          # path: '/{proxy+}'
+          pathPart: '{proxy+}'
+          parentId: root.id
+          restApiId: gateway.id
+
+        apiGateway.createResource params, (err, proxy) ->
+          log "CREATED PROXY RESOURCE", err, proxy
+          done err, {gateway, root, proxy}
+
+      ({gateway, root, proxy}, done) ->
         iam = new AWS.IAM
           region: region
 
         iam.getUser (err, results) ->
+          log "GOT ACCOUNT INFO", gateway, results
           account = results?.User?.UserId
-          done err, {gateway, root, account}
-      ({gateway, root, account}, done) ->
-        log "CREATE 'ANY' METHOD", gateway, root, account
+          done err, {gateway, root, account, proxy}
 
+      ({gateway, root, account, proxy}, done) ->
         params =
           restApiId: gateway.id
           resourceId: root.id
@@ -190,10 +202,23 @@ AWSUtils =
           authorizationType: "NONE"
 
         apiGateway.putMethod params, (err, results) ->
-          log "CREATE METHOD RESULTS", results
-          done err, {gateway, root, account}
+          log "CREATE ROOT METHOD RESULTS", results
+          done err, {gateway, root, account, proxy}
+
+      ({gateway, root, account, proxy}, done) ->
+        log "CREATE 'ANY' METHOD", gateway, root, account
+
+        params =
+          restApiId: gateway.id
+          resourceId: proxy.id
+          httpMethod: 'ANY'
+          authorizationType: "NONE"
+
+        apiGateway.putMethod params, (err, results) ->
+          log "CREATE PROXY METHOD RESULTS", results
+          done err, {gateway, root, account, proxy}
     
-      ({gateway, root, account}, done) ->
+      ({gateway, root, account, proxy}, done) ->
         async.forEachOfSeries statusCodesMap, (defs, code, next) ->
           params =
             restApiId: gateway.id
@@ -207,9 +232,25 @@ AWSUtils =
             log "CREATE METHOD RESPONSE RESULTS", err, results
             next err
         , (err) ->
-          done err, {gateway, root, account}
+          done err, {gateway, root, account, proxy}
+
+      ({gateway, root, account, proxy}, done) ->
+        async.forEachOfSeries statusCodesMap, (defs, code, next) ->
+          params =
+            restApiId: gateway.id
+            resourceId: proxy.id
+            httpMethod: 'ANY'
+            statusCode: code
+            responseModels: 'application/json': 'Empty'
+            responseParameters: methodResponsesParameters[code]
+          
+          apiGateway.putMethodResponse params, (err, results) ->
+            log "CREATE PROXY METHOD RESPONSE RESULTS", err, results
+            next err
+        , (err) ->
+          done err, {gateway, root, account, proxy}
       
-      ({gateway, root, account}, done) ->
+      ({gateway, root, account, proxy}, done) ->
         functionArn = "arn:aws:lambda:#{region}:#{account}:function:#{functionName}"
 
         params =
@@ -225,9 +266,9 @@ AWSUtils =
 
         apiGateway.putIntegration params, (err, results) ->
           log "CREATE INTEGRATION RESULTS", err, results
-          done err, {gateway, root, account}
+          done err, {gateway, root, account, proxy}
 
-      ({gateway, root, account}, done) ->
+      ({gateway, root, account, proxy}, done) ->
         async.forEachOfSeries statusCodesMap, (defs, code, next) ->
           params =
             restApiId: gateway.id
@@ -243,6 +284,42 @@ AWSUtils =
             next err
 
         , (err) ->
+          done err, {gateway, root, account, proxy}
+
+      ({gateway, root, account, proxy}, done) ->
+        functionArn = "arn:aws:lambda:#{region}:#{account}:function:#{functionName}"
+
+        params =
+          uri: "arn:aws:apigateway:#{region}:lambda:path/2015-03-31/functions/#{functionArn}/invocations"
+          type: "AWS_PROXY",
+          restApiId: gateway.id,
+          resourceId: proxy.id,
+          httpMethod: 'ANY',
+          passthroughBehavior: "when_no_match",
+          integrationHttpMethod: "POST",
+          requestTemplates:
+            "application/json" : integrationTemplate
+
+        apiGateway.putIntegration params, (err, results) ->
+          log "CREATE PROXY INTEGRATION RESULTS", err, results
+          done err, {gateway, root, account, proxy}
+
+      ({gateway, root, account, proxy}, done) ->
+        async.forEachOfSeries statusCodesMap, (defs, code, next) ->
+          params =
+            restApiId: gateway.id
+            resourceId: proxy.id
+            httpMethod: 'ANY'
+            statusCode: code,
+            selectionPattern: statusCodesMap[code].selectionPattern,
+            responseTemplates: statusCodesMap[code].responseTemplates,
+            responseParameters: integrationResponsesParameters[code]
+          
+          apiGateway.putIntegrationResponse params, (err, results) ->
+            log "CREATE PROXY INTEGRATION RESPONSE RESULTS", code, err, results
+            next err
+
+        , (err) ->
           done err, {gateway, root, account}
 
       ({gateway, root, account}, done) ->
@@ -250,7 +327,7 @@ AWSUtils =
           Action: "lambda:InvokeFunction"
           Principal: "apigateway.amazonaws.com"
           SourceArn: "arn:aws:execute-api:#{region}:#{account}:#{gateway.id}/*/*/"
-          StatementId: "apigateway-#{gateway.name}-#{+ new Date}"
+          StatementId: "apigateway-#{gateway.name}-#{uuid.v1()}"
           FunctionName: functionName
 
         lambda.addPermission params, (err, results) ->
@@ -262,11 +339,23 @@ AWSUtils =
           Action: "lambda:InvokeFunction"
           Principal: "apigateway.amazonaws.com"
           SourceArn: "arn:aws:execute-api:#{region}:#{account}:#{gateway.id}/#{environment}/ANY/"
-          StatementId: "apigateway-#{gateway.name}-#{+ new Date}"
+          StatementId: "apigateway-#{gateway.name}-#{uuid.v1()}"
           FunctionName: functionName
 
         lambda.addPermission params, (err, results) ->
           log "ADD PERMISSIONS RESULTS", results, params
+          done err, {gateway, root, account}
+
+      ({gateway, root, account}, done) ->
+        params =
+          Action: "lambda:InvokeFunction"
+          Principal: "apigateway.amazonaws.com"
+          SourceArn: "arn:aws:execute-api:#{region}:#{account}:#{gateway.id}/#{environment}/ANY/{proxy+}"
+          StatementId: "apigateway-#{gateway.name}-#{uuid.v1()}"
+          FunctionName: functionName
+
+        lambda.addPermission params, (err, results) ->
+          log "ADD PROXY PERMISSIONS RESULTS", err, results, params
           done err, {gateway, root, account}
 
       ({gateway, root, account}, done) ->
@@ -301,6 +390,8 @@ AWSUtils =
     ], (err, results) ->
       {gateway, root, account} = results || {}
       log "CREATE GATEWAY RESULTS", err, results
+      if err
+        console.log "GOT ERROR", err
       console.log "API RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
       callback err, results
 
