@@ -128,8 +128,12 @@ SimulationUtils =
 
       SimulationUtils.runSimulation allResults, program, topology, input, simOpts, event, topology.api, ->
         response = allResults[topology.api]?.callback?.results?.body || ''
-        respData = JSON.parse response        
-        res.end JSON.stringify(respData)
+        
+        try
+          respData = JSON.parse response
+          res.end JSON.stringify(respData)
+        catch e
+          res.end response
     
     server.listen port, hostname, ->
       ngrok.connect port, (err, url) ->
@@ -139,9 +143,12 @@ SimulationUtils =
 
   runSimulation: (allResults, program, topology, input, simOpts, data, processor, callback) ->
     eventQueue = [{processor: processor, input: data}]
+    hasError = false
     procName = undefined
     simData = undefined
     async.whilst () ->
+      if hasError then return false
+
       nextEvent = eventQueue.shift()
       procName = nextEvent?.processor
       simData = nextEvent?.input
@@ -180,6 +187,9 @@ SimulationUtils =
               input: emitData
 
       , (err, results) ->
+        if err
+          hasError = true
+
         if allResults[procName] is undefined
           allResults[procName] = {}
         allResults[procName].callback = {err, results}
