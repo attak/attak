@@ -52,10 +52,12 @@ Attak =
       input = program.input
     else
       inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
-      input = require inputPath
+      if fs.existsSync inputPath
+        input = require inputPath
+      else
+        input = undefined
 
     kinesaliteServer = kinesalite
-      # ssl: true
       path: nodePath.resolve __dirname, '../simulationdb'
       createStreamMs: 0
 
