@@ -98,7 +98,10 @@ SimulationUtils =
         SimulationUtils.runSimulation allResults, program, topology, input, simOpts, data, processor, ->
           next()
       , (err) ->
-        callback? err, allResults
+        if topology.api
+          console.log "Waiting for incoming requests"
+        else
+          callback? err, allResults
 
   setupSimulationDeps: (allResults, program, topology, input, simOpts, callback) ->
     async.waterfall [

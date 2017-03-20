@@ -87,9 +87,7 @@ program
   .option('-j, --inputFile [' + INPUT_FILE + ']', 'Event JSON File', INPUT_FILE)
   .option('-i, --id [' + LOGIN_NAME + ']', 'Debug session ID (defaults to username)', LOGIN_NAME)
   .action(function (prg) {
-    attak.simulate(prg, function() {
-      
-    });
+    attak.simulate(prg, close);
   });
 
 program
