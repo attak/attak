@@ -137,8 +137,8 @@ SimulationUtils =
 
         try
           respData = JSON.parse response
-          if response.status or response.httpStatus
-            res.status response.status || response.httpStatus
+          if respData.status or respData.httpStatus or respData.headers
+            res.writeHead (respData.status || respData.httpStatus || 200), respData.headers
           res.end respData
         catch e
           res.end response
