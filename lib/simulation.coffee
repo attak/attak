@@ -128,10 +128,9 @@ SimulationUtils =
 
       SimulationUtils.runSimulation allResults, program, topology, input, simOpts, event, topology.api, ->
         response = allResults[topology.api]?.callback?.results?.body || ''
-        
         try
           respData = JSON.parse response
-          res.end JSON.stringify(respData)
+          res.end respData
         catch e
           res.end response
     
