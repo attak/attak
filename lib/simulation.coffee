@@ -127,9 +127,18 @@ SimulationUtils =
         queryStringParameters: req.query
 
       SimulationUtils.runSimulation allResults, program, topology, input, simOpts, event, topology.api, ->
+        if allResults[topology.api]?.callback.err
+          res.writeHead 500
+          return res.end allResults[topology.api]?.callback.err.stack
+
         response = allResults[topology.api]?.callback?.results?.body || ''
+        if not response
+          return res.end()
+
         try
           respData = JSON.parse response
+          if response.status or response.httpStatus
+            res.status response.status || response.httpStatus
           res.end respData
         catch e
           res.end response
