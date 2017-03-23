@@ -4,8 +4,11 @@ uuid = require 'uuid'
 ngrok = require 'ngrok'
 chalk = require 'chalk'
 async = require 'async'
+nodePath = require 'path'
+dynalite = require 'dynalite'
 AWSUtils = require './aws'
 AttakProc = require 'attak-processor'
+kinesalite = require 'kinesalite'
 TopologyUtils = require './topology'
 
 SimulationUtils =
@@ -34,11 +37,11 @@ SimulationUtils =
       fail: (err) -> callback err
       success: (results) -> callback null, results
       topology: topology
-      kinesisEndpoint: program.kinesisEndpoint
+      endpoints: program.endpoints
 
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
-      endpoint: program.kinesisEndpoint
+      endpoint: program.endpoints.kinesis
 
     nextByTopic = AWSUtils.nextByTopic topology, processorName
     AWSUtils.getIterators kinesis, processorName, nextByTopic, topology, (err, iterators) ->
@@ -93,32 +96,59 @@ SimulationUtils =
 
   runSimulations: (program, topology, input, simOpts, callback) ->
     allResults = {}
-    SimulationUtils.setupSimulationDeps allResults, program, topology, input, simOpts, ->
-      async.eachOf input, (data, processor, next) ->
-        SimulationUtils.runSimulation allResults, program, topology, input, simOpts, data, processor, ->
-          next()
-      , (err) ->
-        if topology.api
-          console.log "Waiting for incoming requests"
-        else
-          callback? err, allResults
+    SimulationUtils.setupSimulationDeps allResults, program, topology, input, simOpts, (err, endpoints) ->
+      program.endpoints = endpoints
+
+      AWSUtils.deploySimulationStreams program, topology, (streamNames) ->
+        async.eachOf input, (data, processor, next) ->
+          SimulationUtils.runSimulation allResults, program, topology, input, simOpts, data, processor, ->
+            next()
+        , (err) ->
+          if topology.api
+            console.log "Waiting for incoming requests"
+          else
+            callback? err, allResults
 
   setupSimulationDeps: (allResults, program, topology, input, simOpts, callback) ->
-    async.waterfall [
+    endpoints = {}
+
+    async.parallel [
+      (done) ->
+        kinesaliteServer = kinesalite
+          path: nodePath.resolve __dirname, '../dynamodb'
+          createStreamMs: 0
+
+        kinesaliteServer.listen 6668, (err) ->
+          endpoints.kinesis = 'http://localhost:6668'
+          done()
+
+      (done) ->
+        dynaliteServer = dynalite
+          path: nodePath.resolve __dirname, '../kinesisdb'
+          createStreamMs: 0
+
+        dynaliteServer.listen 6698, (err) ->
+          endpoints.dynamodb = 'http://localhost:6698'
+          done()
+
       (done) ->
         if topology.api
-          SimulationUtils.spoofApi allResults, program, topology, input, simOpts, ->
-            done()
+          SimulationUtils.spoofApi allResults, program, topology, input, simOpts, (err, url) ->
+            endpoints.api = url
+            done err
         else
           done()
-    ], (err, results) ->
-      callback()
+    ], (err) ->
+      callback err, endpoints
     
   spoofApi: (allResults, program, topology, input, simOpts, callback) ->
     hostname = '127.0.0.1'
     port = 12369
     
     server = http.createServer (req, res) ->
+      if program.endpoints is undefined
+        return res.end()
+
       event =
         path: req.url
         body: req.body
@@ -147,7 +177,7 @@ SimulationUtils =
       ngrok.connect port, (err, url) ->
         console.log "API running at: http://localhost:#{port}"
         console.log "Externally visible url:", url
-        callback()
+        callback null, "http://localhost:#{port}"
 
   runSimulation: (allResults, program, topology, input, simOpts, data, processor, callback) ->
     eventQueue = [{processor: processor, input: data}]

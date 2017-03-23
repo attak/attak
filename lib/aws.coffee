@@ -3,7 +3,10 @@ AWS = require 'aws-sdk'
 uuid = require 'uuid'
 chalk = require 'chalk'
 async = require 'async'
+level = require 'level'
+s3sync = require 's3-sync'
 nodePath = require 'path'
+readdirp = require 'readdirp'
 kinesisStreams = require 'kinesis'
 
 DEBUG = false
@@ -100,6 +103,31 @@ integrationTemplate = """
 """
 
 AWSUtils =
+  setupStatic: (handler, opts, callback) ->
+    s3 = new AWS.S3
+      region: opts.region || 'us-east-1'
+
+    # To cache the S3 HEAD results and speed up the upload process.
+    db = level "#{__dirname}/uploadcache"
+    files = readdirp
+      root: __dirname
+      directoryFilter: [
+        '!.git'
+        '!cache'
+        '!.DS_Store'
+      ]
+
+    params =
+      key: process.env.AWS_ACCESS_KEY
+      secret: process.env.AWS_SECRET_KEY
+      bucket: 'sync-testing'
+      concurrency: 16
+
+    uploader = s3sync(db, params).on 'data', (file) ->
+      console.log "#{file.fullPath} -> #{file.url}"
+
+    files.pipe uploader
+
   getApiByName: (name, opts, callback) ->
     gateway = new AWS.APIGateway
       region: opts.region || 'us-east-1'
@@ -176,7 +204,6 @@ AWSUtils =
 
       ({gateway, root}, done) ->
         params =
-          # path: '/{proxy+}'
           pathPart: '{proxy+}'
           parentId: root.id
           restApiId: gateway.id
@@ -405,7 +432,7 @@ AWSUtils =
 
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
-      endpoint: program.kinesisEndpoint
+      endpoint: program.endpoints.kinesis
 
     kinesis.createStream streamOpts, (err, results) ->
       callback err, results
@@ -416,7 +443,7 @@ AWSUtils =
 
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
-      endpoint: program.kinesisEndpoint
+      endpoint: program.endpoints.kinesis
     kinesis.describeStream opts, (err, results) ->
       callback err, results
 
@@ -435,8 +462,8 @@ AWSUtils =
     names = []
     async.forEachSeries topology.streams, (stream, next) ->
       streamName = AWSUtils.getStreamName topology.name, stream.from, stream.to,
-        host: url.parse(program.kinesisEndpoint).hostname
-        port: url.parse(program.kinesisEndpoint).port
+        host: url.parse(program.endpoints.kinesis).hostname
+        port: url.parse(program.endpoints.kinesis).port
 
       AWSUtils.createStream program, topology.name, streamName, stream.opts, (err, results) ->
         AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->
@@ -466,7 +493,7 @@ AWSUtils =
     
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
-      endpoint: program.kinesisEndpoint
+      endpoint: program.endpoints.kinesis
 
     params =
       Data: new Buffer JSON.stringify(data)

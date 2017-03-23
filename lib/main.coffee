@@ -5,7 +5,6 @@ AWSUtils = require './aws'
 inquirer = require 'inquirer'
 download = require 'download-github-repo'
 CommUtils = require './comm'
-kinesalite = require 'kinesalite'
 LambdaUtils = require './lambda'
 TopologyUtils = require './topology'
 SimulationUtils = require './simulation'
@@ -57,31 +56,23 @@ Attak =
       else
         input = undefined
 
-    kinesaliteServer = kinesalite
-      path: nodePath.resolve __dirname, '../simulationdb'
-      createStreamMs: 0
+    if program.id
+      CommUtils.connect program, (socket, wrtc) ->
+        wrtc.emit 'topology',
+          topology: topology
 
-    kinesaliteServer.listen 6668, (err) ->
-      program.kinesisEndpoint = 'http://localhost:6668'
+        emitter = wrtc.emit
+        wrtc.reconnect = (wrtc) ->
+          emitter = wrtc.emit
 
-      AWSUtils.deploySimulationStreams program, topology, (streamNames) ->
-        if program.id
-          CommUtils.connect program, (socket, wrtc) ->
-            wrtc.emit 'topology',
-              topology: topology
+        opts =
+          report: () ->
+            emitter? arguments...
 
-            emitter = wrtc.emit
-            wrtc.reconnect = (wrtc) ->
-              emitter = wrtc.emit
+        SimulationUtils.runSimulations program, topology, input, opts, callback
 
-            opts =
-              report: () ->
-                emitter? arguments...
-
-            SimulationUtils.runSimulations program, topology, input, opts, callback
-
-        else
-          SimulationUtils.runSimulations program, topology, input, {}, callback
+    else
+      SimulationUtils.runSimulations program, topology, input, {}, callback
 
   trigger: (program, callback) ->
     topology = require (program.cwd || process.cwd())
