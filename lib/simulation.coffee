@@ -133,14 +133,82 @@ SimulationUtils =
 
       (done) ->
         if topology.api
-          SimulationUtils.spoofApi allResults, program, topology, input, simOpts, (err, url) ->
+          SimulationUtils.spoofAWS allResults, program, topology, input, simOpts, (err, url) ->
             endpoints.api = url
             done err
         else
           done()
+
+      (done) ->
+        if topology.api
+          SimulationUtils.spoofApi allResults, program, topology, input, simOpts, (err, url) ->
+            endpoints.api = url
+            done err
+        else
+          done()  
     ], (err) ->
       callback err, endpoints
+
+  spoofAWS: (allResults, program, topology, input, simOpts, callback) ->
+    hostname = '127.0.0.1'
+    port = 12368
     
+    server = http.createServer (req, res) ->
+      body = ''
+      req.on 'data', (data) ->
+        body += data
+      
+      req.on 'end', () ->
+        try
+          body = JSON.parse body
+        catch e
+
+        headers =
+          'Access-Control-Max-Age': '86400'
+          'Access-Control-Allow-Origin': '*'
+          'Access-Control-Allow-Methods': 'POST, GET, PUT, DELETE, OPTIONS'
+          'Access-Control-Allow-Headers': 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept, X-Amz-Content-Sha256, X-Amz-User-Agent, x-amz-security-token, X-Amz-Date, X-Amz-Invocation-Type, Authorization'
+          'Access-Control-Expose-Headers': 'x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date,x-amz-log-result,x-amz-function-error'
+          'Access-Control-Allow-Credentials': false
+
+        res.writeHead 200, headers
+
+        if req.method is 'OPTIONS' or req.url.indexOf('/functions/') is -1
+          return res.end()
+
+        environment = program.environment || 'development'
+
+        splitPath = req.url.split '/'
+        fullName = splitPath[3]
+        functionName = fullName.split("-#{environment}")[0]
+
+        event =
+          path: req.url
+          body: body
+          headers: req.headers
+          httpMethod: req.method
+          queryStringParameters: req.query
+
+        SimulationUtils.runSimulation allResults, program, topology, body, simOpts, event, functionName, ->
+          if allResults[functionName]?.callback.err
+            res.writeHead 500
+            return res.end allResults[functionName]?.callback.err.stack
+
+          response = allResults[functionName]?.callback?.results?.body || ''
+          if not response
+            return res.end()
+
+          try
+            respData = JSON.parse response
+            if respData.status or respData.httpStatus or respData.headers
+              res.writeHead (respData.status || respData.httpStatus || 200), respData.headers
+            res.end respData
+          catch e
+            res.end response
+    
+    server.listen port, hostname, ->
+      callback()
+
   spoofApi: (allResults, program, topology, input, simOpts, callback) ->
     hostname = '127.0.0.1'
     port = 12369
