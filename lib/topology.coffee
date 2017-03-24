@@ -59,6 +59,9 @@ TopologyUtils =
     else
       procData = topology.processors[name]
 
+    if procData is undefined
+      throw new Error "Failed to find processor #{name}"
+
     if procData.constructor is String
       source = procData
     else if procData?.constructor is Function or typeof(procData?.constructor) is 'function'
