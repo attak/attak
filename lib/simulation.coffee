@@ -97,8 +97,6 @@ SimulationUtils =
   runSimulations: (program, topology, input, simOpts, callback) ->
     allResults = {}
     SimulationUtils.setupSimulationDeps allResults, program, topology, input, simOpts, (err, endpoints) ->
-      program.endpoints = endpoints
-
       AWSUtils.deploySimulationStreams program, topology, (streamNames) ->
         async.eachOf input, (data, processor, next) ->
           SimulationUtils.runSimulation allResults, program, topology, input, simOpts, data, processor, ->
@@ -109,8 +107,16 @@ SimulationUtils =
           else
             callback? err, allResults
 
+  topologyProvision: (allResults, program, topology, input, simOpts, callback) ->
+    if topology.provision
+      config =
+        aws:
+          endpoints: program.endpoints
+
+      topology.provision topology
+
   setupSimulationDeps: (allResults, program, topology, input, simOpts, callback) ->
-    endpoints = {}
+    program.endpoints = {}
 
     async.parallel [
       (done) ->
@@ -119,7 +125,7 @@ SimulationUtils =
           createStreamMs: 0
 
         kinesaliteServer.listen 6668, (err) ->
-          endpoints.kinesis = 'http://localhost:6668'
+          program.endpoints.kinesis = 'http://localhost:6668'
           done()
 
       (done) ->
@@ -128,13 +134,13 @@ SimulationUtils =
           createStreamMs: 0
 
         dynaliteServer.listen 6698, (err) ->
-          endpoints.dynamodb = 'http://localhost:6698'
+          program.endpoints.dynamodb = 'http://localhost:6698'
           done()
 
       (done) ->
         if topology.api
           SimulationUtils.spoofAWS allResults, program, topology, input, simOpts, (err, url) ->
-            endpoints.api = url
+            program.endpoints.api = url
             done err
         else
           done()
@@ -142,12 +148,23 @@ SimulationUtils =
       (done) ->
         if topology.api
           SimulationUtils.spoofApi allResults, program, topology, input, simOpts, (err, url) ->
-            endpoints.api = url
+            program.endpoints.api = url
             done err
         else
-          done()  
+          done()
+
+      (done) ->
+        if topology.provision
+          config =
+            aws:
+              endpoints: program.endpoints
+
+          topology.provision topology, config, (err) ->
+            done err
+        else
+          done()
     ], (err) ->
-      callback err, endpoints
+      callback err, program.endpoints
 
   spoofAWS: (allResults, program, topology, input, simOpts, callback) ->
     hostname = '127.0.0.1'
