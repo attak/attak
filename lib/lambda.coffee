@@ -20,14 +20,21 @@ LambdaUtils =
 
       fs.writeFileSync runnerPath, """
         'use strict'
-        var attak = require('attak-processor')
+        try {
+          var attak = require('attak-processor')
         
-        var procName = '#{name}'
-        var topology = attak.utils.topology.loadTopology({})
-        var impl = attak.getProcessor({}, topology, procName)
-        var opts = #{JSON.stringify({region: program.region})}
+          var procName = '#{name}'
+          var topology = attak.utils.topology.loadTopology({})
+          var impl = attak.utils.topology.getProcessor({}, topology, procName)
+          var opts = #{JSON.stringify({region: program.region})}
 
-        exports.handler = attak.handler(procName, topology, impl, opts)
+          exports.handler = attak.handler(procName, topology, impl, opts)
+        } catch(err) {
+          console.log("ERROR SETTING UP HANDLER", err)
+          exports.handler = function(event, context, callback) {
+            callback(err)
+          }
+        }
       """
 
       lambda.deploy prog, (err, results) ->
