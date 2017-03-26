@@ -107,14 +107,6 @@ SimulationUtils =
           else
             callback? err, allResults
 
-  topologyProvision: (allResults, program, topology, input, simOpts, callback) ->
-    if topology.provision
-      config =
-        aws:
-          endpoints: program.endpoints
-
-      topology.provision topology
-
   setupSimulationDeps: (allResults, program, topology, input, simOpts, callback) ->
     program.endpoints = {}
 
@@ -153,18 +145,17 @@ SimulationUtils =
         else
           done()
 
-      (done) ->
-        if topology.provision
-          config =
-            aws:
-              endpoints: program.endpoints
-
-          topology.provision topology, config, (err) ->
-            done err
-        else
-          done()
     ], (err) ->
-      callback err, program.endpoints
+      console.log("ENDPOINTS", program.endpoints)
+      if topology.provision
+        config =
+          aws:
+            endpoints: program.endpoints
+
+        topology.provision topology, config, (err) ->
+          callback err, program.endpoints
+      else
+        callback null, program.endpoints
 
   spoofAWS: (allResults, program, topology, input, simOpts, callback) ->
     hostname = '127.0.0.1'
