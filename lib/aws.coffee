@@ -432,7 +432,7 @@ AWSUtils =
 
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
-      endpoint: program.endpoints.kinesis
+      endpoint: program.endpoints?.kinesis
 
     kinesis.createStream streamOpts, (err, results) ->
       callback err, results
@@ -443,7 +443,7 @@ AWSUtils =
 
     kinesis = new AWS.Kinesis
       region: program.region || 'us-east-1'
-      endpoint: program.endpoints.kinesis
+      endpoint: program.endpoints?.kinesis
     kinesis.describeStream opts, (err, results) ->
       callback err, results
 
