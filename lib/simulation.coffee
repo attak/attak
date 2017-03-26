@@ -121,7 +121,7 @@ SimulationUtils =
     async.parallel [
       (done) ->
         kinesaliteServer = kinesalite
-          path: nodePath.resolve __dirname, '../dynamodb'
+          path: nodePath.resolve __dirname, '../kinesisdb'
           createStreamMs: 0
 
         kinesaliteServer.listen 6668, (err) ->
@@ -130,7 +130,7 @@ SimulationUtils =
 
       (done) ->
         dynaliteServer = dynalite
-          path: nodePath.resolve __dirname, '../kinesisdb'
+          path: nodePath.resolve __dirname, '../dynamodb'
           createStreamMs: 0
 
         dynaliteServer.listen 6698, (err) ->
