@@ -138,12 +138,12 @@ SimulationUtils =
           done()
 
       (done) ->
-        if topology.api
-          SimulationUtils.spoofAWS allResults, program, topology, input, simOpts, (err, url) ->
+        SimulationUtils.spoofAWS allResults, program, topology, input, simOpts, (err, url) ->
+          iot = new AWS.Iot
+          iot.describeEndpoint {}, (err, results) ->
             program.endpoints.api = url
+            program.endpoints.iot = results?.endpointAddress
             done err
-        else
-          done()
 
       (done) ->
         if topology.api
