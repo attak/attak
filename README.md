@@ -1,16 +1,14 @@
 [![Attak Distributed Computing Framework](./lib/img/readme.png)](http://attak.io)
 
-**Serverless done right**
+## Serverless done right
 
 ATTAK is a framework that helps you string together serverless functions and message queues to create distributed compute topologies. It aims to be platform agnostic, beginning with support for Amazon Web Services and Google Cloud.
 
-**Status**
+### Status
 
 Pre-alpha, active development software - not for production use. API stabilization expected by summer 2017
 
-**Contributing**
-
-Pull requests and issues welcome.
+Readme and other documentation may be inaccurate or incomplete.
 
 # Contents
 
