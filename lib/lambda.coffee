@@ -54,6 +54,7 @@ LambdaUtils =
   #     callback err, retval
 
   deployProcessors: (topology, program, callback) ->
+    retval = {}
     regions = program.region.split(',')
 
     runnerPath = require('path').resolve (program.cwd || process.cwd()), './attak_runner.js'
@@ -81,7 +82,7 @@ LambdaUtils =
       if err
         return callback err
 
-      async.forEachOf topology.processors, (processor, name, next) ->
+      async.forEachOf topology.processors, (processor, name, nextProcessor) ->
         console.log "DEPLOYING", name
         # zip.file './attak_runner.js', new Buffer """
         #   'use strict'
@@ -128,7 +129,7 @@ LambdaUtils =
             SubnetIds: program.vpcSubnets.split ','
             SecurityGroupIds: program.vpcSecurityGroups.split ','
 
-        async.map regions, (region, next) ->
+        async.map regions, (region, nextRegion) ->
           aws_security = region: region
           
           if program.profile
@@ -146,19 +147,24 @@ LambdaUtils =
           awsLambda = new AWS.Lambda
             apiVersion: '2015-03-31'
           
-          awsLambda.getFunction {FunctionName: params.FunctionName}, (err) ->
+          awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
             if err
               console.log "CREATE FUNCTION", functionName
-              return awsLambda.createFunction params, next
-            console.log "UPDATE FUNCTION", functionName
-            LambdaUtils.uploadExisting awsLambda, params, next
+              awsLambda.createFunction params, (err, results) ->
+                retval[params.FunctionName] = results
+                nextRegion err
+            else
+              retval[params.FunctionName] = results
+              console.log "UPDATE FUNCTION", functionName
+              LambdaUtils.uploadExisting awsLambda, params, (err, results) ->
+                nextRegion err
         
         , (err, results) ->
           console.log "FINISHED DEPLOYING", name
-          next err
+          nextProcessor err
       , (err) ->
-        console.log "FINISHED DEPLOYING", err
-        callback err
+        console.log "FINISHED DEPLOYING", err, retval
+        callback err, retval
 
   uploadExisting: (awsLambda, params, callback) ->
     awsLambda.updateFunctionCode
@@ -238,8 +244,5 @@ LambdaUtils =
 
             LambdaUtils.zipDir program, codeDirectory, (err, buffer) ->
               callback err, buffer
-            # archive = if process.platform != 'win32' then lambda._nativeZip else lambda._zip
-            # archive = archive.bind lambda
-            # archive program, codeDirectory, callback
 
 module.exports = LambdaUtils
