@@ -11,48 +11,6 @@ nodePath = require 'path'
 
 LambdaUtils =
 
-  # deployProcessors: (topology, program, callback) ->
-  #   retval = {}
-
-  #   runnerPath = require('path').resolve (program.cwd || process.cwd()), './attak_runner.js'
-
-  #   # npm install and zip directory
-  #   # for each processor
-  #   #   add runner to zip
-
-  #   async.forEachOfSeries topology.processors, (processor, name, next) ->
-  #     prog = extend true, {}, program
-  #     prog.functionName = name
-  #     prog.handler = 'attak_runner.handler'
-
-  #     fs.writeFileSync runnerPath, """
-  #       'use strict'
-  #       try {
-  #         var attak = require('attak-processor')
-        
-  #         var procName = '#{name}'
-  #         var topology = attak.utils.topology.loadTopology({})
-  #         var impl = attak.utils.topology.getProcessor({}, topology, procName)
-  #         var opts = #{JSON.stringify({region: program.region})}
-
-  #         exports.handler = attak.handler(procName, topology, impl, opts)
-  #       } catch(err) {
-  #         console.log("ERROR SETTING UP HANDLER", err)
-  #         exports.handler = function(event, context, callback) {
-  #           callback(err)
-  #         }
-  #       }
-  #     """
-
-  #     lambda.deploy prog, (err, results) ->
-  #       for result in results
-  #         retval[result.FunctionName] = result
-
-  #       fs.unlink runnerPath, ->
-  #         next()
-  #   , (err) ->
-  #     callback err, retval
-
   deployProcessors: (topology, program, callback) ->
     retval = {}
     regions = program.region.split(',')
@@ -83,30 +41,6 @@ LambdaUtils =
         return callback err
 
       async.forEachOf topology.processors, (processor, name, nextProcessor) ->
-        console.log "DEPLOYING", name
-        # zip.file './attak_runner.js', new Buffer """
-        #   'use strict'
-        #   try {
-        #     var attak = require('attak-processor')
-          
-        #     var procName = process.env.ATTAK_PROCESSOR_NAME
-        #     var topology = attak.utils.topology.loadTopology({})
-        #     var impl = attak.utils.topology.getProcessor({}, topology, procName)
-        #     var opts = #{JSON.stringify({region: program.region})}
-
-        #     exports.handler = attak.handler(procName, topology, impl, opts)
-        #   } catch(err) {
-        #     console.log("ERROR SETTING UP HANDLER", err)
-        #     exports.handler = function(event, context, callback) {
-        #       callback(err)
-        #     }
-        #   }
-        # """
-        
-        # genOpts =
-        #   type: 'nodebuffer'
-        #   compression: 'DEFLATE'
-
         functionName = "#{name}-#{program.environment || 'development'}"
 
         params = 
@@ -149,21 +83,17 @@ LambdaUtils =
           
           awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
             if err
-              console.log "CREATE FUNCTION", functionName
               awsLambda.createFunction params, (err, results) ->
                 retval[params.FunctionName] = results
                 nextRegion err
             else
               retval[params.FunctionName] = results
-              console.log "UPDATE FUNCTION", functionName
               LambdaUtils.uploadExisting awsLambda, params, (err, results) ->
                 nextRegion err
         
         , (err, results) ->
-          console.log "FINISHED DEPLOYING", name
           nextProcessor err
       , (err) ->
-        console.log "FINISHED DEPLOYING", err, retval
         callback err, retval
 
   uploadExisting: (awsLambda, params, callback) ->
@@ -172,7 +102,6 @@ LambdaUtils =
       ZipFile: params.Code.ZipFile
       Publish: params.Publish
     , (err, data) ->
-      console.log "UPDATED FUNCTION", params.FunctionName
       if err
         return callback(err, data)
       
@@ -185,7 +114,6 @@ LambdaUtils =
         Timeout: params.Timeout
         VpcConfig: params.VpcConfig
       , (err, data) ->
-        console.log "UPDATED FN CONFIG", params.FunctionName, err, data
         callback err, data
 
   createSampleFile: (file, boilerplateName) ->
