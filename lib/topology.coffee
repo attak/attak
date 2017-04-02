@@ -5,10 +5,13 @@ TopologyUtils =
     workingDir = opts.cwd || process.cwd()
     topology = opts.topology || require workingDir
 
-    if topology.streams.constructor is Function
+    if topology.name is undefined
+      throw new Error "Error loading topology: missing name"
+
+    if topology.streams?.constructor is Function
       topology.streams = topology.streams()
     
-    for stream, index in topology.streams
+    for stream, index in (topology.streams || [])
       if stream.constructor is Array
         topology.streams[index] =
           from: stream[0]
