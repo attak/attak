@@ -651,14 +651,14 @@ AWSUtils =
 
   getNext: (topology, topic, current) ->
     next = []
-    for stream in topology.streams
+    for stream in (topology.streams || [])
       if stream.from is current and (stream.topic || topic) is topic
         next.push stream.to
     next
 
   nextByTopic: (topology, current) ->
     next = {}
-    for stream in topology.streams
+    for stream in (topology.streams || [])
       if stream.from is current
         next[stream.topic || 'all'] = stream.to
     next
