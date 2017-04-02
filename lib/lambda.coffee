@@ -9,36 +9,49 @@ lambda = require 'node-lambda'
 NodeZip = require 'node-zip'
 nodePath = require 'path'
 
+DEBUG = false
+log = -> if DEBUG then console.log arguments...
+
 LambdaUtils =
 
   deployProcessors: (topology, program, callback) ->
+    log "Deploying processors"
     retval = {}
     regions = program.region.split(',')
+    environment = program.environment || 'development'
 
     runnerPath = require('path').resolve (program.cwd || process.cwd()), './attak_runner.js'
 
     fs.writeFileSync runnerPath, """
-      'use strict'
+      var procName = process.env.ATTAK_PROCESSOR_NAME
+      var environment = '#{environment}'
+
       try {
         var attak = require('attak-processor')
-      
-        var procName = process.env.ATTAK_PROCESSOR_NAME
         var topology = attak.utils.topology.loadTopology({})
         var impl = attak.utils.topology.getProcessor({}, topology, procName)
-        var opts = #{JSON.stringify({region: program.region})}
-
+        var opts = #{JSON.stringify({region: program.region, environment: environment})}
         exports.handler = attak.handler(procName, topology, impl, opts)
+      
       } catch(err) {
-        console.log("ERROR SETTING UP HANDLER", err)
+        console.log("ERROR SETTING UP HANDLER", environment, procName, topology, process.env)
+        console.log(err.stack)
         exports.handler = function(event, context, callback) {
-          callback(err)
+          if (environment === 'development' || event.attakProcessorVerify) {
+            callback(null, err)
+          } else {
+            callback(err)
+          }
         }
       }
     """
 
+    log "Build and archive"
     LambdaUtils.buildAndArchive program, (err, buffer) ->
       if err
         return callback err
+
+      log "Deploying #{Object.keys(topology.processors).length} processors"
 
       async.forEachOf topology.processors, (processor, name, nextProcessor) ->
         functionName = "#{name}-#{program.environment || 'development'}"
@@ -46,7 +59,7 @@ LambdaUtils =
         params = 
           FunctionName: functionName
           Code: ZipFile: buffer
-          Handler: program.handler
+          Handler: 'attak_runner.handler'
           Role: program.role
           Runtime: program.runtime
           Description: program.description
@@ -56,7 +69,7 @@ LambdaUtils =
           VpcConfig: {}
           Environment:
             Variables:
-              ATTAK_PROCESSOR_NAME: functionName
+              ATTAK_PROCESSOR_NAME: name
 
         if program.vpcSubnets and program.vpcSecurityGroups
           params.VpcConfig =
@@ -83,10 +96,12 @@ LambdaUtils =
           
           awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
             if err
+              log "Creating new function", params.FunctionName, params
               awsLambda.createFunction params, (err, results) ->
                 retval[params.FunctionName] = results
                 nextRegion err
             else
+              log "Updating existing function", params.FunctionName, params
               retval[params.FunctionName] = results
               LambdaUtils.uploadExisting awsLambda, params, (err, results) ->
                 nextRegion err
@@ -102,6 +117,7 @@ LambdaUtils =
       ZipFile: params.Code.ZipFile
       Publish: params.Publish
     , (err, data) ->
+      log "UPDATE CODE RESULTS", err, data
       if err
         return callback(err, data)
       
@@ -113,7 +129,9 @@ LambdaUtils =
         Role: params.Role
         Timeout: params.Timeout
         VpcConfig: params.VpcConfig
+        Environment: params.Environment
       , (err, data) ->
+        log "UPDATE CONFIG RESULTS", err, data
         callback err, data
 
   createSampleFile: (file, boilerplateName) ->
@@ -141,8 +159,6 @@ LambdaUtils =
         callback null, data
 
   buildAndArchive: (program, callback) ->
-    LambdaUtils.createSampleFile '.env', '.env'
-
     # Warn if not building on 64-bit linux
     arch = process.platform + '.' + process.arch
     if arch != 'linux.x64'
@@ -166,7 +182,7 @@ LambdaUtils =
             if err
               return callback(err)
 
-            # Add custom environment variables if program.configFile is defined
+            Add custom environment variables if program.configFile is undefined
             if program.configFile
               lambda._setEnvironmentVars program, codeDirectory
 

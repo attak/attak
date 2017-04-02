@@ -9,7 +9,7 @@ nodePath = require 'path'
 readdirp = require 'readdirp'
 kinesisStreams = require 'kinesis'
 
-DEBUG = false
+DEBUG = true
 log = -> if DEBUG then console.log arguments...
 
 credentials = new AWS.SharedIniFileCredentials
@@ -176,33 +176,57 @@ AWSUtils =
             break
 
         if existing
-          params =
-            restApiId: existing.id
-
-          apiGateway.deleteRestApi params, (err, results) ->
-            log "DELETED API", existing.id, err, results
-            done()
+          log "API EXISTS ALREADY"
+          done null, {gateway: existing}
         else
           log "API DOESNT EXIST YET"
-          done()
-      (done) ->
-        params =
-          name: opts.name
+          params =
+            name: opts.name
 
-        apiGateway.createRestApi params, (err, gateway) ->
-          log "CREATED API", err, gateway
-          done err, {gateway}
+          apiGateway.createRestApi params, (err, gateway) ->
+            log "CREATED API", err, gateway
+            done err, {gateway}
+
+
+      # ({gateway}, done) ->
+      #   ids = [
+      #     "apigateway-#{gateway.name}-star"
+      #     "apigateway-#{gateway.name}-any"
+      #     "apigateway-#{gateway.name}-proxy"
+      #   ]
+
+      #   async.each ids, (id, next) ->
+      #     params =
+      #       StatementId: id
+      #       FunctionName: functionName
+
+      #     lambda.removePermission params, (err, results) ->
+      #       log "REMOVE PERMISSIONS RESULTS", id, results
+      #       next()
+      #   , (err) ->
+      #     setTimeout ->
+      #       done null, {gateway}
+      #     , 30000
 
       ({gateway}, done) ->
         params =
           restApiId: gateway.id
 
         apiGateway.getResources params, (err, results) ->
-          root = results?.items?[0]
-          log "GOT ROOT RESOURCE", err, root
-          done err, {gateway, root}
+          root = undefined
+          for item in results.items
+            if item.path is '/'
+              root = item
+              break
 
-      ({gateway, root}, done) ->
+          log "GOT ROOT RESOURCE", err, root, results.items
+          done err, {gateway, root, resources: results.items}
+
+      ({gateway, root, resources}, done) ->
+        for item in resources
+          if item.pathPart is '{proxy+}'
+            return done null, {gateway, root, proxy: item}
+
         params =
           pathPart: '{proxy+}'
           parentId: root.id
@@ -226,11 +250,20 @@ AWSUtils =
           restApiId: gateway.id
           resourceId: root.id
           httpMethod: 'ANY'
-          authorizationType: "NONE"
 
-        apiGateway.putMethod params, (err, results) ->
-          log "CREATE ROOT METHOD RESULTS", results
-          done err, {gateway, root, account, proxy}
+        apiGateway.getMethod params, (err, results) ->
+          if results
+            return done null, {gateway, root, account, proxy}
+
+          params =
+            restApiId: gateway.id
+            resourceId: root.id
+            httpMethod: 'ANY'
+            authorizationType: "NONE"
+
+          apiGateway.putMethod params, (err, results) ->
+            log "CREATE ROOT METHOD RESULTS", err, results
+            done err, {gateway, root, account, proxy}
 
       ({gateway, root, account, proxy}, done) ->
         log "CREATE 'ANY' METHOD", gateway, root, account
@@ -239,11 +272,20 @@ AWSUtils =
           restApiId: gateway.id
           resourceId: proxy.id
           httpMethod: 'ANY'
-          authorizationType: "NONE"
 
-        apiGateway.putMethod params, (err, results) ->
-          log "CREATE PROXY METHOD RESULTS", results
-          done err, {gateway, root, account, proxy}
+        apiGateway.getMethod params, (err, results) ->
+          if results
+            return done null, {gateway, root, account, proxy}
+
+          params =
+            restApiId: gateway.id
+            resourceId: proxy.id
+            httpMethod: 'ANY'
+            authorizationType: "NONE"
+
+          apiGateway.putMethod params, (err, results) ->
+            log "CREATE PROXY METHOD RESULTS", results
+            done err, {gateway, root, account, proxy}
     
       ({gateway, root, account, proxy}, done) ->
         async.forEachOfSeries statusCodesMap, (defs, code, next) ->
@@ -252,12 +294,22 @@ AWSUtils =
             resourceId: root.id
             httpMethod: 'ANY'
             statusCode: code
-            responseModels: 'application/json': 'Empty'
-            responseParameters: methodResponsesParameters[code]
-          
-          apiGateway.putMethodResponse params, (err, results) ->
-            log "CREATE METHOD RESPONSE RESULTS", err, results
-            next err
+
+          apiGateway.getMethodResponse params, (err, results) ->
+            if results
+              return next()
+
+            params =
+              restApiId: gateway.id
+              resourceId: root.id
+              httpMethod: 'ANY'
+              statusCode: code
+              responseModels: 'application/json': 'Empty'
+              responseParameters: methodResponsesParameters[code]
+            
+            apiGateway.putMethodResponse params, (err, results) ->
+              log "CREATE METHOD RESPONSE RESULTS", err, results
+              next err
         , (err) ->
           done err, {gateway, root, account, proxy}
 
@@ -268,12 +320,22 @@ AWSUtils =
             resourceId: proxy.id
             httpMethod: 'ANY'
             statusCode: code
-            responseModels: 'application/json': 'Empty'
-            responseParameters: methodResponsesParameters[code]
-          
-          apiGateway.putMethodResponse params, (err, results) ->
-            log "CREATE PROXY METHOD RESPONSE RESULTS", err, results
-            next err
+
+          apiGateway.getMethodResponse params, (err, results) ->
+            if results
+              return next()
+
+            params =
+              restApiId: gateway.id
+              resourceId: proxy.id
+              httpMethod: 'ANY'
+              statusCode: code
+              responseModels: 'application/json': 'Empty'
+              responseParameters: methodResponsesParameters[code]
+            
+            apiGateway.putMethodResponse params, (err, results) ->
+              log "CREATE PROXY METHOD RESPONSE RESULTS", err, results
+              next err
         , (err) ->
           done err, {gateway, root, account, proxy}
       
@@ -351,39 +413,59 @@ AWSUtils =
 
       ({gateway, root, account}, done) ->
         params =
+          FunctionName: functionName
+
+        lambda.getPolicy params, (err, results) ->
+          policy = JSON.parse(results.Policy)
+          done err, {gateway, root, account, policy}
+
+      ({gateway, root, account, policy}, done) ->
+        for statement in policy.Statement
+          if statement.Sid is "apigateway-#{gateway.name}-star"
+            return done null, {gateway, root, account, policy}
+
+        params =
           Action: "lambda:InvokeFunction"
           Principal: "apigateway.amazonaws.com"
           SourceArn: "arn:aws:execute-api:#{region}:#{account}:#{gateway.id}/*/*/"
-          StatementId: "apigateway-#{gateway.name}-#{uuid.v1()}"
+          StatementId: "apigateway-#{gateway.name}-star"
           FunctionName: functionName
 
         lambda.addPermission params, (err, results) ->
           log "ADD STAR PERMISSIONS RESULTS", results
-          done err, {gateway, root, account}
+          done null, {gateway, root, account, policy}
 
-      ({gateway, root, account}, done) ->
+      ({gateway, root, account, policy}, done) ->
+        for statement in policy.Statement
+          if statement.Sid is "apigateway-#{gateway.name}-any"
+            return done null, {gateway, root, account, policy}
+
         params =
           Action: "lambda:InvokeFunction"
           Principal: "apigateway.amazonaws.com"
           SourceArn: "arn:aws:execute-api:#{region}:#{account}:#{gateway.id}/#{environment}/ANY/"
-          StatementId: "apigateway-#{gateway.name}-#{uuid.v1()}"
+          StatementId: "apigateway-#{gateway.name}-any"
           FunctionName: functionName
 
         lambda.addPermission params, (err, results) ->
           log "ADD PERMISSIONS RESULTS", results, params
-          done err, {gateway, root, account}
+          done null, {gateway, root, account, policy}
 
-      ({gateway, root, account}, done) ->
+      ({gateway, root, account, policy}, done) ->
+        for statement in policy.Statement
+          if statement.Sid is "apigateway-#{gateway.name}-proxy"
+            return done null, {gateway, root, account, policy}
+
         params =
           Action: "lambda:InvokeFunction"
           Principal: "apigateway.amazonaws.com"
           SourceArn: "arn:aws:execute-api:#{region}:#{account}:#{gateway.id}/#{environment}/ANY/{proxy+}"
-          StatementId: "apigateway-#{gateway.name}-#{uuid.v1()}"
+          StatementId: "apigateway-#{gateway.name}-proxy"
           FunctionName: functionName
 
         lambda.addPermission params, (err, results) ->
           log "ADD PROXY PERMISSIONS RESULTS", err, results, params
-          done err, {gateway, root, account}
+          done null, {gateway, root, account}
 
       ({gateway, root, account}, done) ->
         params =

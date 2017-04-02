@@ -46,6 +46,7 @@ Attak =
     topology = TopologyUtils.loadTopology program
 
     program.startTime = new Date
+    program.environment = program.environment || 'development'
 
     if program.input
       input = program.input
