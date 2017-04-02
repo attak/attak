@@ -109,7 +109,8 @@ LambdaUtils =
         , (err, results) ->
           nextProcessor err
       , (err) ->
-        callback err, retval
+        fs.unlink runnerPath, ->
+          callback err, retval
 
   uploadExisting: (awsLambda, params, callback) ->
     awsLambda.updateFunctionCode
