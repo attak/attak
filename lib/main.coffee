@@ -94,20 +94,28 @@ Attak =
 
   deploy: (opts, callback) ->
     topology = TopologyUtils.loadTopology opts
-    
-    if topology.api
-      LambdaUtils.deployProcessors topology, opts, (err, lambdas) ->
-        AWSUtils.deployStreams topology, opts, lambdas, (err, streams) ->
-          gatewayName = "#{topology.name}-#{opts.environment || 'development'}"
-          gatewayOpts =
-            name: gatewayName
-            environment: opts.environment
 
-          AWSUtils.setupGateway topology.api, {name: gatewayName}, (err, gateway) ->
-            callback? err, {lambdas, streams, gateway}
-    else
-      LambdaUtils.deployProcessors topology, opts, (err, lambdas) ->
-          AWSUtils.deployStreams topology, opts, lambdas, (err, streams) ->
-            callback? err, {lambdas, streams}
+    LambdaUtils.deployProcessors topology, opts, (err, lambdas) ->
+      AWSUtils.deployStreams topology, opts, lambdas, (err, streams) ->
+        gateway = undefined
+        async.parallel [
+          (done) ->
+            if topology.api
+              gatewayName = "#{topology.name}-#{opts.environment || 'development'}"
+              gatewayOpts =
+                name: gatewayName
+                environment: opts.environment
+
+              AWSUtils.setupGateway topology.api, {name: gatewayName}, (err, results) ->
+                gateway = results
+                done err
+            else
+              done()
+          (done) ->
+            if topology.schedule
+              AWSUtils.setupSchedule topology, opts, (err, results) ->
+                done err
+        ], (err) ->
+          callback? err, {lambdas, streams, gateway}
 
 module.exports = Attak

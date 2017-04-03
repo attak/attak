@@ -4,6 +4,7 @@ uuid = require 'uuid'
 ngrok = require 'ngrok'
 chalk = require 'chalk'
 async = require 'async'
+parser = require 'cron-parser'
 nodePath = require 'path'
 dynalite = require 'dynalite'
 AWSUtils = require './aws'
@@ -99,11 +100,13 @@ SimulationUtils =
     SimulationUtils.setupSimulationDeps allResults, program, topology, input, simOpts, (err, endpoints) ->
       AWSUtils.deploySimulationStreams program, topology, (streamNames) ->
         async.eachOf input, (data, processor, next) ->
-          SimulationUtils.runSimulation allResults, program, topology, input, simOpts, data, processor, ->
+          SimulationUtils.runSimulation allResults, program, topology, simOpts, data, processor, ->
             next()
         , (err) ->
           if topology.api
             console.log "Waiting for incoming requests"
+          else if topology.schedule
+            console.log "Waiting for scheduled events"
           else
             callback? err, allResults
 
@@ -145,8 +148,14 @@ SimulationUtils =
         else
           done()
 
+      (done) ->
+        if topology.schedule
+          SimulationUtils.spoofScheduler allResults, program, topology, input, simOpts, (err, results) ->
+            done err
+        else
+          done()
+
     ], (err) ->
-      console.log("ENDPOINTS", program.endpoints)
       if topology.provision
         config =
           aws:
@@ -156,6 +165,47 @@ SimulationUtils =
           callback err, program.endpoints
       else
         callback null, program.endpoints
+
+  spoofScheduler: (allResults, program, topology, input, simOpts, callback) ->
+    start = new Date().getTime()
+
+    triggerEvent = (procName, defs) ->
+      console.log "EVENT TIME", new Date().getTime() - start
+      SimulationUtils.runSimulation allResults, program, topology, simOpts, defs, procName, ->
+        null
+
+    async.each topology.schedule, (defs, next) ->
+      if defs.type is 'cron'
+        interval = parser.parseExpression defs.value
+
+        runNext = ->
+          nextTime = interval.next().getTime() - new Date().getTime()
+          console.log "NEXT TIME IS", nextTime
+          setTimeout ->
+            triggerEvent defs.processor, defs
+            runNext()
+          , nextTime
+
+        runNext()
+
+      else
+        [strNum, unit] = defs.value.split ' '
+        num = Number strNum
+        multiplier = switch unit
+          when 'minute', 'minutes'
+            1000 * 60
+          when 'hour', 'hours'
+            1000 * 60 * 60
+          when 'day', 'days'
+            1000 * 60 * 60 * 24
+
+        setInterval ->
+          triggerEvent defs.processor, defs
+        , num * multiplier
+        
+      next()
+    , ->
+      callback()
 
   spoofAWS: (allResults, program, topology, input, simOpts, callback) ->
     hostname = '127.0.0.1'
@@ -197,7 +247,7 @@ SimulationUtils =
           httpMethod: req.method
           queryStringParameters: req.query
 
-        SimulationUtils.runSimulation allResults, program, topology, body, simOpts, event, functionName, ->
+        SimulationUtils.runSimulation allResults, program, topology, simOpts, event, functionName, ->
           if allResults[functionName]?.callback.err
             res.writeHead 500
             return res.end allResults[functionName]?.callback.err.stack
@@ -232,7 +282,7 @@ SimulationUtils =
         httpMethod: req.method
         queryStringParameters: req.query
 
-      SimulationUtils.runSimulation allResults, program, topology, input, simOpts, event, topology.api, ->
+      SimulationUtils.runSimulation allResults, program, topology, simOpts, event, topology.api, ->
         if allResults[topology.api]?.callback.err
           res.writeHead 500
           return res.end allResults[topology.api]?.callback.err.stack
@@ -255,7 +305,7 @@ SimulationUtils =
         console.log "Externally visible url:", url
         callback null, "http://localhost:#{port}"
 
-  runSimulation: (allResults, program, topology, input, simOpts, data, processor, callback) ->
+  runSimulation: (allResults, program, topology, simOpts, data, processor, callback) ->
     eventQueue = [{processor: processor, input: data}]
     hasError = false
     procName = undefined

@@ -147,6 +147,83 @@ AWSUtils =
       console.log "GET REST APIS", err, results
       callback err, results
 
+  setupSchedule: (topology, opts, callback) ->
+    log "SETUP SCHEDULE", topology.schedule
+
+    region = opts.region || 'us-east-1'
+    environment = opts.environment || 'development'
+
+    lambda = new AWS.Lambda
+      region: region
+
+    apiGateway = new AWS.APIGateway
+      region: region
+
+    cloudWatchEvents = new AWS.CloudWatchEvents
+      region: region
+
+    async.each topology.schedule, (defs, next) ->
+      functionName = "#{defs.processor}-#{environment}"
+      
+      async.waterfall [
+        (done) ->
+          params =
+            Name: "#{topology.name}-#{defs.name}"
+            ScheduleExpression: "#{defs.type}(#{defs.value})"
+
+          cloudWatchEvents.putRule params, (err, results) ->
+            log "PUT RULE RESULTS", params, err, results
+            done err, {arn: results.RuleArn}
+        
+        ({arn}, done) ->
+          params =
+            FunctionName: functionName
+
+          lambda.getPolicy params, (err, results) ->
+            log "GET POLICY RESULTS", results
+            if err
+              policy = undefined
+            else
+              policy = JSON.parse(results?.Policy)
+            
+            done null, {arn, policy}
+
+        ({arn, policy}, done) ->
+          for statement in (policy?.Statement || [])
+            if statement.Sid is "schedule-#{topology.name}-#{defs.name}-#{defs.processor}"
+              return done null, {arn, policy}
+
+          params =
+            Action: "lambda:InvokeFunction"
+            Principal: "events.amazonaws.com"
+            SourceArn: arn
+            StatementId: "schedule-#{topology.name}-#{defs.name}-#{defs.processor}"
+            FunctionName: functionName
+
+          lambda.addPermission params, (err, results) ->
+            log "ADD SCHEDULE #{defs.name} PERMISSIONS RESULTS", err, results
+            done err, {arn, policy}
+        
+        ({arn, policy}, done) ->
+          splitArn = arn.split ':'
+          region = splitArn[3]
+          accountId = splitArn[4]
+
+          params =
+            Rule: "#{topology.name}-#{defs.name}"
+            Targets: [{
+              Id: "target-#{topology.name}-#{defs.name}-#{functionName}"
+              Arn: "arn:aws:lambda:#{region}:#{accountId}:function:#{functionName}"
+            }]
+
+          cloudWatchEvents.putTargets params, (err, results) ->
+            log "PUT TARGETS RESULTS", params, err, results
+            done err
+      ], (err) ->
+        next err
+    , (err) ->
+      callback err
+
   setupGateway: (handler, opts, callback) ->
     log "SETUP GATEWAY", handler, opts
 
