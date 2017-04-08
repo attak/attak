@@ -38,7 +38,7 @@ TopologyUtils =
     # a function 'topology.processor' that takes a processor
     # name and returns a processor. We look at streams on the
     # topology to find the full list of processors used.
-    else if topology.processors is undefined and topology.processor.constructor is Function
+    else if topology.processors is undefined and topology.processor?.constructor is Function
       processors = {}
       for stream in topology.streams
         if processors[stream.to] is undefined
@@ -47,6 +47,9 @@ TopologyUtils =
           processors[stream.from] = stream.from
 
       topology.processors = processors
+
+    else
+      topology.processors = {}
 
     return topology
 

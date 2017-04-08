@@ -101,12 +101,11 @@ Attak =
         async.parallel [
           (done) ->
             if topology.api
-              gatewayName = "#{topology.name}-#{opts.environment || 'development'}"
               gatewayOpts =
-                name: gatewayName
+                name: "#{topology.name}-#{opts.environment || 'development'}"
                 environment: opts.environment
 
-              AWSUtils.setupGateway topology.api, {name: gatewayName}, (err, results) ->
+              AWSUtils.setupGateway topology.api, gatewayOpts, (err, results) ->
                 gateway = results
                 done err
             else
@@ -115,6 +114,14 @@ Attak =
             if topology.schedule
               AWSUtils.setupSchedule topology, opts, (err, results) ->
                 done err
+            else
+              done()
+          (done) ->
+            if topology.static
+              AWSUtils.setupStatic topology, opts, (err, results) ->
+                done err
+            else
+              done()
         ], (err) ->
           callback? err, {lambdas, streams, gateway}
 

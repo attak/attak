@@ -103,30 +103,74 @@ integrationTemplate = """
 """
 
 AWSUtils =
-  setupStatic: (handler, opts, callback) ->
+  setupStatic: (topology, opts, callback) ->
+    workingDir = opts.cwd || process.cwd()
+
+    if topology.static.constructor is String
+      staticDir = nodePath.resolve workingDir, topology.static
+    else
+      staticDir = nodePath.resolve workingDir, topology.static.dir
+    
+    bucketName = "#{topology.name}-#{opts.environment || 'development'}"
+
+    AWSUtils.setupBucket bucketName, opts, (err, results) ->
+      log "DONE SETTING UP BUCKET"
+      AWSUtils.uploadDir bucketName, staticDir, opts, (err, results) ->
+        callback()
+
+  setupBucket: (bucketName, opts, callback) ->
     s3 = new AWS.S3
       region: opts.region || 'us-east-1'
 
+    params =
+      Bucket: bucketName
+
+    s3.headBucket params, (err, results) ->
+      if err and err.code is 'NotFound'
+        params =
+          ACL: 'public-read'
+          Bucket: bucketName
+
+        s3.createBucket params, (err, results) ->
+          log "CREATE BUCKET RESULTS", err, results
+          callback()
+      else
+        callback()
+
+  uploadDir: (bucketName, staticDir, opts, callback) ->
+    s3 = new AWS.S3
+      region: opts.region || 'us-east-1'
+
+    log "UPLOADING STATIC FILES FROM", staticDir
+
     # To cache the S3 HEAD results and speed up the upload process.
-    db = level "#{__dirname}/uploadcache"
+    db = level nodePath.resolve __dirname, '../uploadcache'
     files = readdirp
-      root: __dirname
+      root: staticDir
       directoryFilter: [
         '!.git'
         '!cache'
         '!.DS_Store'
       ]
 
+    log "WRITING TO BUCKET", bucketName
+
     params =
-      key: process.env.AWS_ACCESS_KEY
-      secret: process.env.AWS_SECRET_KEY
-      bucket: 'sync-testing'
+      key: opts.accessKey
+      secret: opts.secretKey
+      bucket: bucketName
       concurrency: 16
 
     uploader = s3sync(db, params).on 'data', (file) ->
-      console.log "#{file.fullPath} -> #{file.url}"
+      log "UPLOADING #{file.fullPath} -> #{file.url}"
 
     files.pipe uploader
+
+    uploader.on 'fail', (err) ->
+      log "UPLOAD FAILED", err
+
+    uploader.on 'end', ->
+      callback()
 
   getApiByName: (name, opts, callback) ->
     gateway = new AWS.APIGateway
