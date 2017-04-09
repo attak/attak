@@ -8,6 +8,7 @@ extend = require 'extend'
 lambda = require 'node-lambda'
 NodeZip = require 'node-zip'
 nodePath = require 'path'
+ProgressBar = require 'progress'
 
 DEBUG = false
 log = -> if DEBUG then console.log arguments...
@@ -19,6 +20,9 @@ LambdaUtils =
     retval = {}
     regions = program.region.split(',')
     environment = program.environment || 'development'
+
+    bar = new ProgressBar 'uploading :bar', 
+      total: Object.keys(topology.processors).length
 
     runnerPath = require('path').resolve (program.cwd || process.cwd()), './attak_runner.js'
 
@@ -107,6 +111,7 @@ LambdaUtils =
                 nextRegion err
         
         , (err, results) ->
+          bar.tick()
           nextProcessor err
       , (err) ->
         fs.unlink runnerPath, ->
