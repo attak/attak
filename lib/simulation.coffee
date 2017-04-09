@@ -10,6 +10,7 @@ dynalite = require 'dynalite'
 AWSUtils = require './aws'
 AttakProc = require 'attak-processor'
 kinesalite = require 'kinesalite'
+staticHost = require 'node-static'
 TopologyUtils = require './topology'
 
 SimulationUtils =
@@ -107,6 +108,8 @@ SimulationUtils =
             console.log "Waiting for incoming requests"
           else if topology.schedule
             console.log "Waiting for scheduled events"
+          else if topology.static
+            console.log "Waiting to serve static content"
           else
             callback? err, allResults
 
@@ -144,6 +147,14 @@ SimulationUtils =
         if topology.api
           SimulationUtils.spoofApi allResults, program, topology, input, simOpts, (err, url) ->
             program.endpoints.api = url
+            done err
+        else
+          done()
+
+      (done) ->
+        if topology.static
+          SimulationUtils.spoofStaticHosting allResults, program, topology, input, simOpts, (err, url) ->
+            program.endpoints.static = url
             done err
         else
           done()
@@ -266,6 +277,29 @@ SimulationUtils =
     
     server.listen port, hostname, ->
       callback()
+
+  spoofStaticHosting: (allResults, program, topology, input, simOpts, callback) ->
+    workingDir = program.cwd || process.cwd()
+    hostname = '127.0.0.1'
+    port = 12342
+
+    if topology.static.constructor is String
+      staticDir = nodePath.resolve workingDir, topology.static
+    else
+      staticDir = nodePath.resolve workingDir, topology.static.dir
+
+    file = new staticHost.Server staticDir
+
+    server = http.createServer (req, res) ->
+      req.addListener 'end', ->
+        file.serve req, res
+      .resume()
+    
+    server.listen port, hostname, ->
+      ngrok.connect port, (err, url) ->
+        console.log "Static files hosted at: http://localhost:#{port}/[file path]"
+        console.log "Externally visible url: #{url}/[file [path]"
+        callback null, "http://localhost:#{port}"
 
   spoofApi: (allResults, program, topology, input, simOpts, callback) ->
     hostname = '127.0.0.1'
