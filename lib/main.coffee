@@ -123,6 +123,14 @@ Attak =
             else
               done()
         ], (err) ->
-          callback? err, {lambdas, streams, gateway}
+          if topology.provision
+            config =
+              aws:
+                endpoints: {}
+
+            topology.provision topology, config, (err) ->
+              callback err, {'lambdas', 'streams', gateway}
+          else
+            callback? err, {lambdas, streams, gateway}
 
 module.exports = Attak
