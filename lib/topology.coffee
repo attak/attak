@@ -48,7 +48,7 @@ TopologyUtils =
 
       topology.processors = processors
 
-    else
+    else if topology.processors is undefined
       topology.processors = {}
 
     return topology
