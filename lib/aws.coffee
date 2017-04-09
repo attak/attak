@@ -102,6 +102,26 @@ integrationTemplate = """
   }
 """
 
+federatedPolicies =
+  google: (config) ->
+    """
+      {
+        "Version":"2012-10-17",
+        "Statement": [{
+          "Effect":"Allow",
+          "Principal":{
+            "Federated":"accounts.google.com"
+          },
+          "Action":"sts:AssumeRoleWithWebIdentity",
+          "Condition":{
+            "StringEquals":{
+              "accounts.google.com:aud":"#{config.key}"
+            }
+          }
+        }]
+      }
+    """
+
 AWSUtils =
   setupStatic: (topology, opts, callback) ->
     workingDir = opts.cwd || process.cwd()
@@ -116,7 +136,8 @@ AWSUtils =
     AWSUtils.setupBucket bucketName, opts, (err, results) ->
       log "DONE SETTING UP BUCKET"
       AWSUtils.uploadDir bucketName, staticDir, opts, (err, results) ->
-        callback()
+        AWSUtils.setupBucketPermissions topology, opts, ->
+          callback()
 
   setupBucket: (bucketName, opts, callback) ->
     s3 = new AWS.S3
@@ -135,6 +156,98 @@ AWSUtils =
           log "CREATE BUCKET RESULTS", err, results
           callback()
       else
+        callback()
+
+  setupStaticRole: (topology, opts, callback) ->
+    iam = new AWS.IAM
+      region: opts.region || 'us-east-1'
+
+    environment = opts.environment || 'development'
+    roleName = "static-#{topology.name}-#{environment}"
+
+    iam.listRoles {}, (err, results) ->
+      console.log "ROLES", err, results
+      existing = undefined
+      for role in results.Roles
+        if role.RoleName is roleName
+          existing = role
+
+      if existing isnt undefined
+        return callback null, existing.Arn
+
+      federatedProvider = Object.keys(topology.static.auth.federated)[0]
+      policyConfig = topology.static.auth.federated[federatedProvider]
+      policyDoc = federatedPolicies[federatedProvider](policyConfig)
+
+      params =
+        AssumeRolePolicyDocument: policyDoc
+        Path: '/'
+        RoleName: roleName
+
+      iam.createRole params, (err, results) ->
+        log "CREATE STATIC ROLE RESULTS", err, results
+        callback err, results.Arn
+
+  setupBucketPermissions: (topology, opts, callback) ->
+    if topology.static.permissions?.invoke is undefined
+      return callback()
+
+    lambda = new AWS.Lambda
+      region: opts.region || 'us-east-1'
+
+    AWSUtils.setupStaticRole topology, opts, (err, roleArn) ->
+      splitArn = roleArn.split ':'
+      accountId = splitArn[4]
+
+      async.each topology.static.permissions.invoke, (target, next) ->
+        environment = opts.environment || 'development'
+        functionName = "#{target}-#{environment}"
+
+        async.waterfall [
+          (done) ->
+            params =
+              FunctionName: functionName
+
+            lambda.getPolicy params, (err, results) ->
+              log "GET POLICY RESULTS", results
+              if err
+                policy = undefined
+              else
+                policy = JSON.parse(results?.Policy)
+              
+              done null, policy
+
+          # (policy, done) ->
+          #   params =
+          #     StatementId: "static-#{topology.name}-#{opts.environment || 'development'}"
+          #     FunctionName: functionName
+
+          #   lambda.removePermission params, (err, results) ->
+          #     console.log "REMOVE PERMISSION RESULTS", err, results
+          #     setTimeout ->
+          #       console.log "DONE REMOVING PERMISSIONS"
+          #       done null, policy
+          #     , 60000
+
+          (policy, done) ->
+            statementName = "static-#{topology.name}-#{target}-#{opts.environment || 'development'}"
+            for statement in (policy?.Statement || [])
+              if statement.Sid is statementName
+                return done null
+
+            params =
+              Action: "lambda:InvokeFunction"
+              Principal: roleArn
+              # SourceArn: "arn:aws:sts::#{accountId}:assumed-role/#{statementName}/#{topology.name}"
+              StatementId: statementName
+              FunctionName: functionName
+
+            lambda.addPermission params, (err, results) ->
+              log "ADD STATIC #{target} PERMISSIONS RESULTS", err, results
+              done err
+        ], (err, results) ->
+          next err
+      , (err) ->
         callback()
 
   uploadDir: (bucketName, staticDir, opts, callback) ->
