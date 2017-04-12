@@ -2,7 +2,13 @@
 
 ## Serverless done right
 
-ATTAK is a framework that helps you string together serverless functions and message queues to create distributed compute topologies. It aims to be platform agnostic, beginning with support for Amazon Web Services and Google Cloud.
+ATTAK is a framework that helps you string together serverless functions and message queues to create distributed compute topologies. If your application can be built using serverless/auto-scaling technologies (it probably can), ATTAK is the easiest way to build it.
+
+We aim to be platform agnostic, beginning with support for Amazon Web Services and then Google Cloud.
+
+### Why use ATTAK
+
+Companies like Amazon and Google create amazing building blocks, but they don't focus on tools. ATTAK blends many services together to create a fully featured application framework, and offers tools for local simulation, unit testing, and much more. It handles the setup for permissions, event triggers, etc., and lets you focus on your application.
 
 ### Status
 
@@ -60,12 +66,29 @@ ATTAK will deploy all processors and streams in the topology.
 
 # Examples
 
+## Basic functionality demos
 - [Simple hello world](http://github.com/attak/attak-hello-world) - Emit some text and reverse it
+- [HTTP Endpoint](https://github.com/attak/attak-examples/tree/master/http-endpoint) - Basic request handler
+- [Scheduled Events](https://github.com/attak/attak-examples/tree/master/scheduled) - Trigger functions on a schedule
+- [Dynamic processor/stream definitions](https://github.com/attak/attak-examples/tree/master/processor-ring) - Example of dynamic definitions
+
+## Complex examples
+- [Chat Room](https://github.com/attak/attak-chat) - Chat room with google auth
 - [Stream github events](http://github.com/attak/attak-github-events) - Monitor the GitHub Events API for updates and process the results
 
 # Topologies
 
-An topology is a structure that defines the features of your application. An ATTAK project is meant to be a node package, so we will `require` the directory, and `index.js` (or whatever is specified in `package.json`) will be loaded.
+An topology is a structure that defines the features of your application. It declares the resources required (serverless functions, message queues, static hosting, authentication, etc.) and ATTAK will automatically setup the permissions and connections necessary.
+
+> Note: An ATTAK project is meant to be a node package, so we will `require` the project directory, and `index.js` (or whatever is specified in `package.json` as `main`) will be loaded as your topology.
+
+Every topology needs a name, but all other parameters are optional. They include:
+
+- [`processors`](#processors) - definitions for serverless functions
+- [`schedule`](#schedule) - trigger processors periodically
+- [`streams`](#streams) - connections between processors
+- [`static`](#static) - static hosting configuration
+- [`api`](#api) - HTTP endpoint
 
 At its core, a topology is a description of one or more processors and the connections between them. Here's an example of a very simple topology. Processors is a key-value map between processor name and procesor definition, and streams is an array of processor connections.
 
@@ -82,9 +105,62 @@ module.exports = {
 }
 ```
 
-## Processor definitions
+ATTAK can build many different types of applications. For instance, here's a topology that sets up static hosting and an HTTP endpoint, but no streams.
 
-There are several ways to define processors on a topology
+```js
+module.exports = {
+  name: 'static-example',
+  static: './public',
+  api: 'requestHandler',
+  processors: {
+    requestHandler: function(event, context, callback) {
+      callback(null, "Amazing HTTP request response")
+    }
+  }
+}
+```
+
+## Processors
+
+Processors are the basic unit of computation in ATTAK and can be thought of as analygous to a single serverless function. A processor has a main "handler function" that is called in response to events, and it can be used to process data, emit events, invoke other processors, call other handler functions directly, or otherwise run code on command.
+
+## Handler functions
+
+Handler functions are called with an event, context, and callback like other serverless frameworks. Unlike other frameworks, ATTAK handlers have `context.emit(topic, message)`, which allows them to send out data across the topology. They may emit any number of events, and must call the callback when finished. Here's an example handler:
+
+```js
+module.exports = {
+  handler: function(event, context, callback) {
+    console.log(event)
+    context.emit('output topic', 'hello ' + event.name)
+    callback()
+  }
+}
+```
+
+## Emitting events
+
+Processors can emit any number of events on any number of [topics](#topics). Events can optionally contain data of any type.
+
+```js
+handler: function(event, context, callback) {
+  context.emit('processing started')
+  context.emit('got event', event)
+
+  // If emitting a lot, do it asynchronously
+  context.emit('frequent', 'event', function(err) {
+    console.log('done emitting')
+
+    // The handler must call the callback. We can emit
+    // errors if we have them
+    if (err) {
+      callback(err)
+    } else {
+      callback()
+    }
+  })
+}
+```
 
 ### Inline handlers
 
@@ -170,46 +246,6 @@ module.exports = {
       shards: 50
     }
   ]
-}
-```
-
-# Processors
-
-## Handler functions
-
-Processors are simply functions that can be called with an event and context. It may emit any number of events, and must call the callback when finished. A handler funtion takes the following form:
-
-```js
-module.exports = {
-  handler: function(event, context, callback) {
-    console.log(event); // prints {name: 'world'}
-    context.emit('output topic', `hello ${event.name}`)
-    callback()
-  }
-}
-```
-
-## Emitting events
-
-Processors can emit any number of events on any number of [topics](#topics). Events can optionally contain data of any type.
-
-```js
-handler: function(event, context, callback) {
-  context.emit('processing started')
-  context.emit('got event', event)
-
-  // If emitting a lot, do it asynchronously
-  context.emit('frequent', 'event', function(err) {
-    console.log('done emitting')
-
-    // The handler must call the callback. We can emit
-    // errors if we have them
-    if (err) {
-      callback(err)
-    } else {
-      callback()
-    }
-  })
 }
 ```
 
