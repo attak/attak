@@ -2,17 +2,22 @@
 
 ## Serverless done right
 
-ATTAK is a framework that helps you string together serverless functions and message queues to create distributed compute topologies. If your application can be built using serverless/auto-scaling technologies (it probably can), ATTAK is the easiest way to build it.
+ATTAK is a full-stack framework for applications built on auto-scaling components.
 
 We aim to be platform agnostic, beginning with support for Amazon Web Services and then Google Cloud.
 
 ### Why use ATTAK
 
-Companies like Amazon and Google create amazing building blocks, but they don't focus on tools. ATTAK blends many services together to create a fully featured application framework, and offers tools for local simulation, unit testing, and much more. It handles the setup for permissions, event triggers, etc., and lets you focus on your application.
+Companies like Amazon and Google create amazing building blocks, but they don't put much focus on tools. ATTAK blends many services together to create a fully featured application framework, and offers tools for local simulation, unit testing, and much more. It handles the setup for permissions, event triggers, etc., and lets you focus on your application rather than platform specifics.
 
 ### Status
 
-Pre-alpha, active development software - not for production use. API stabilization expected by summer 2017
+Pre-alpha.
+
+Roadmap:
+
+- Alpha release on AWS expected summer 2017
+- Alpha Google compatibility late 2017
 
 Readme and other documentation may be inaccurate or incomplete.
 
@@ -84,11 +89,11 @@ An topology is a structure that defines the features of your application. It dec
 
 Every topology needs a name, but all other parameters are optional. They include:
 
-- [`processors`](#processors) - definitions for serverless functions
+- [`processors`](#processors) - event handler functions
 - [`schedule`](#schedule) - trigger processors periodically
 - [`streams`](#streams) - connections between processors
 - [`static`](#static) - static hosting configuration
-- [`api`](#api) - HTTP endpoint
+- [`api`](#api) - handle HTTP requests
 
 At its core, a topology is a description of one or more processors and the connections between them. Here's an example of a very simple topology. Processors is a key-value map between processor name and procesor definition, and streams is an array of processor connections.
 
