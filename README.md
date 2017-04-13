@@ -26,8 +26,6 @@ Readme and other documentation may be inaccurate or incomplete.
 * [Quick Start](#quick-start)
 * [Examples](#examples)
 * [Topologies](#topologies)
-  * [Processor Definitions](#processor-definitions)
-  * [Stream Definitions](#stream-definitions)
 * [Processors](#processors)
   * [Handler Functions](#handler-functions)
   * [Emitting Data](#emitting-data)
@@ -35,8 +33,9 @@ Readme and other documentation may be inaccurate or incomplete.
 * [Streams](#streams)
   * [Static Definitions](#processor-definitions)
   * [Dynamic Definitions](#stream-definitions)
-* [Schedule](#schedule)
-* [Static](#static)
+* [Scheduled Events](#schedule)
+* [Static Hosting](#static)
+* [APIs](#api)
 
 # Quick Start
 
@@ -79,6 +78,7 @@ ATTAK will deploy all processors and streams in the topology.
 ## Basic functionality demos
 - [Simple hello world](http://github.com/attak/attak-hello-world) - Emit some text and reverse it
 - [HTTP Endpoint](https://github.com/attak/attak-examples/tree/master/http-endpoint) - Basic request handler
+- [Static Hosting](https://github.com/attak/attak-examples/tree/master/static-files) - Configurat static hosting and federated auth
 - [Scheduled Events](https://github.com/attak/attak-examples/tree/master/scheduled) - Trigger functions on a schedule
 - [Dynamic processor/stream definitions](https://github.com/attak/attak-examples/tree/master/processor-ring) - Example of dynamic definitions
 
@@ -414,3 +414,8 @@ This feature is under active development, but an example looks something like:
     }
   },
 ```
+
+# API
+
+ATTAK processors can be used to handle http requests. In this mode, they are invoked with details bout the request, and are expected to call the callback with response details.
+
