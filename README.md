@@ -32,6 +32,11 @@ Readme and other documentation may be inaccurate or incomplete.
   * [Handler Functions](#handler-functions)
   * [Emitting Data](#emitting-data)
   * [Handler Callback](#handler-callback)
+* [Streams](#streams)
+  * [Static Definitions](#processor-definitions)
+  * [Dynamic Definitions](#stream-definitions)
+* [Schedule](#schedule)
+* [Static](#static)
 
 # Quick Start
 
@@ -125,7 +130,7 @@ module.exports = {
 }
 ```
 
-## Processors
+# Processors
 
 Processors are the basic unit of computation in ATTAK and can be thought of as analygous to a single serverless function. A processor has a main "handler function" that is called in response to events, and it can be used to process data, emit events, invoke other processors, call other handler functions directly, or otherwise run code on command.
 
@@ -167,7 +172,7 @@ handler: function(event, context, callback) {
 }
 ```
 
-### Inline handlers
+## Inline handlers
 
 Processor handler functions can be defined inline
 
@@ -184,7 +189,7 @@ module.exports = {
 }
 ```
 
-### Processor folders
+## Processor folders
 
 If all processors are in a single folder, processors can be set to the folder path.
 
@@ -194,7 +199,7 @@ module.exports = {
 }
 ```
 
-### Dynamic definitions
+## Dynamic definitions
 
 If we want to dynamically generate processors, we have two options.
 
@@ -229,34 +234,6 @@ module.exports = {
   }
 }
 ```
-
-## Stream definitions
-
-Streams setup the flow of data between processors. They can be defined as a static array or dynamic function.
-
-### Static array
-
-The simplest and most common type of stream definition:
-
-```js
-module.exports = {
-  streams: [
-    // Connections can either be an array of strings
-    ['processor1', 'processor2'],
-    
-    // Or an object structure for with options
-    {
-      from: 'processor4',
-      to: 'processor5',
-      shards: 50
-    }
-  ]
-}
-```
-
-### Topics
-
-When processors emit 
 
 ## Handler callback
 
@@ -302,3 +279,138 @@ handler: (event, context, callback) {
 
 This will allow ATTAK to record the error and stop execution as fast as possible. Emits that were still processing before the error will be allowed to finish.
 
+
+# Streams
+
+Streams setup the flow of data between processors. Behind the scenes, a stream configures ATTAK to send emitted data through a distributed queue (Kinesis Streams, for example) to another processor.
+
+## Static definitions
+
+Since streams are simply connections between two processors, they can be defined very simply as an array
+
+```js
+streams: [
+  // Simple stream from source to destination
+  ['sourceProcessor', 'destProcessor'],
+
+  // There can be unlimited streams from a given processor
+  ['sourceProcessor', 'otherProcessor'],
+
+  // There can also be unlimited streams into a given processor
+  ['otherProcessor', 'finalProcessor'],
+ 
+  // Loops are fine too
+  ['finalProcessor', 'sourceProcessor'],
+
+  // Listen for events on a specific topic
+  ['finalProcessor', 'otherProcessor', 'finalProcessorTopic'],
+]
+```
+
+Streams can also be defined as an object structure, which allows for more options to be defined:
+
+```js
+module.exports = {
+  name: 'stream-example'
+  streams: [
+    {
+      from: 'processor1',
+      to: 'processor2',
+      shards: 50
+    }
+  ]
+}
+```
+
+## Dynamic definitions
+
+Streams can be defined dynamically by providing a function for your topology's `streams` parameter. The function is called as the topology is loaded, and should return an array of stream definitions (in either array or object format)
+
+```js
+  streams: function() {
+    var streams = []
+
+    for (var iStream=0; iStream<NUM_PROCESSORS; ++iStream) {
+      streams.push({
+        to: `processor${iStream}`,
+        from: `processor${iStream == NUM_PROCESSORS - 1 ? 0 : iStream + 1}`
+      })
+    }
+
+    return streams
+  }
+```
+
+# Schedule
+
+ATTAK can trigger processors on a schedule. Schedules can be define in cron-like pattens or by specifying a call frequency.
+
+```js
+  module.exports = {
+    name: 'scheduled',
+    schedule: [
+      {
+        name: 'every_2_minutes_cron',
+        type: 'cron',
+        value: '*/2 * * * ? *',
+        processor: 'onEvent'
+      },
+      {
+        name: 'every_minute_rate',
+        type: 'rate',
+        value: '1 minute',
+        processor: 'onEvent'
+      }
+      {
+        name: 'twice_a_day_rate',
+        type: 'rate',
+        value: '12 hours',
+        processor: 'onEvent'
+      }
+    ],
+    processors: {
+      onEvent: function(event, context, callback) {
+        console.log("INSIDE SCHEDULED EVENT HANDLER", event)
+        callback(null, {ok: true})
+      }
+    }
+  }
+```
+
+# Static
+
+ATTAK can configure your files to be hosted statically on services like s3. It will also assist with setting up things like federated authentication (sending users through a google authentication flow for AWS Cognito credentials, for instance).
+
+## Directory hosting
+
+Setting up basic static hosting is easy:
+
+```js
+  module.exports = {
+    // Uploads all files in public and makes them publicly viewable
+    static: './public'
+  }
+```
+
+## Authentication
+
+This feature is under active development, but an example looks something like:
+
+```js
+  static: {
+    // Expose files inside the build directory
+    dir: './build',
+    permissions: {
+      // Setup permissions for the front end to invoke processor1
+      invoke: ['processor1']
+    },
+    auth: {
+      federated: {
+        // Setup a federated google auth flow using an api key
+        google: {
+          key: '...'
+        }
+      }
+    }
+  },
+```
