@@ -1,6 +1,6 @@
 [![Attak Distributed Computing Framework](./lib/img/readme.png)](http://attak.io)
 
-## Serverless done right
+## Next generation serverless functions
 
 ATTAK is a full-stack framework for applications built on auto-scaling components.
 
@@ -8,7 +8,7 @@ We aim to be platform agnostic, beginning with support for Amazon Web Services a
 
 ### Why use ATTAK
 
-Companies like Amazon and Google create amazing building blocks, but they don't put much focus on tools. ATTAK blends many services together to create a fully featured application framework, and offers tools for local simulation, unit testing, and much more. It handles the setup for permissions, event triggers, etc., and lets you focus on your application rather than platform specifics.
+Companies like Amazon and Google create amazing building block services, but they don't put much focus on tools combining them. ATTAK blends many services together to create a fully featured application framework, and offers tools for complex local simulation, multi-function unit testing, and much more. It handles the setup for permissions, event triggers, etc., and lets you focus on your application rather than platform specifics.
 
 ### Status
 
@@ -16,7 +16,7 @@ Pre-alpha.
 
 Roadmap:
 
-- Alpha release on AWS expected summer 2017
+- Alpha AWS compatibility summer 2017
 - Alpha Google compatibility late 2017
 
 Readme and other documentation may be inaccurate or incomplete.
