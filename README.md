@@ -27,12 +27,7 @@ Readme and other documentation may be inaccurate or incomplete.
 * [Examples](#examples)
 * [Topologies](#topologies)
 * [Processors](#processors)
-  * [Handler Functions](#handler-functions)
-  * [Emitting Data](#emitting-data)
-  * [Handler Callback](#handler-callback)
 * [Streams](#streams)
-  * [Static Definitions](#processor-definitions)
-  * [Dynamic Definitions](#stream-definitions)
 * [Scheduled Events](#schedule)
 * [Static Hosting](#static)
 * [APIs](#api)
@@ -132,7 +127,7 @@ module.exports = {
 
 # Processors
 
-Processors are the basic unit of computation in ATTAK and can be thought of as analygous to a single serverless function. A processor has a main "handler function" that is called in response to events, and it can be used to process data, emit events, invoke other processors, call other handler functions directly, or otherwise run code on command.
+Processors are the basic unit of computation in ATTAK and represents configuration for a single process. A processor has a main "handler function" that is called in response to events, and it can be used to process data, emit events, invoke other processors, call other handler functions locally, or otherwise run code in response to events.
 
 ## Handler functions
 
@@ -253,7 +248,7 @@ Callbacks are one way to report errors. Error handling is an important topic, so
 
 Processor logs are recorded and stored according to the platform being used. For example, AWS Lambda logs can be found in AWS CloudWatch.
 
-More logging featrues and details coming soon.
+More logging features and details coming soon.
 
 ## Error handling
 
