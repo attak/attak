@@ -412,5 +412,22 @@ This feature is under active development, but an example looks something like:
 
 # API
 
-ATTAK processors can be used to handle http requests. In this mode, they are invoked with details bout the request, and are expected to call the callback with response details.
+ATTAK processors can be used to handle http requests. To do this, specify one of your processors in the `api` parameter
 
+```js
+module.exports = {
+  name: 'api-example',
+  api: 'requestHandler'
+  processors: {
+    requestHandler: function(event, context, callback) {
+      callback null, {
+        body: 'ATTAK!',
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'text'
+        }
+      }
+    }
+  }
+}
+```
