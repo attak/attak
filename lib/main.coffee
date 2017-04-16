@@ -145,18 +145,15 @@ Attak =
         ], (err) ->
           done err, results
       (results, done) ->
-        if opts.skip?.provision
+        if opts.skip?.provision or !topology.provision
           return done null, results
 
-        if topology.provision
-          config =
-            aws:
-              endpoints: {}
+        config =
+          aws:
+            endpoints: {}
 
-          topology.provision topology, config, (err) ->
-            done err, results
-        else
-          done? err, results
+        topology.provision topology, config, (err) ->
+          done err, results
     ], (err, results) ->
       callback? err, results
 
