@@ -22,8 +22,8 @@ describe 'simulate', ->
 
     opts =
       cwd: './test'
-      report: ->
       input: input
+      report: -> null
       topology: topology
       kinesisEndpoint: kinesisEndpoint
 
