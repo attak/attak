@@ -95,9 +95,29 @@ Attak =
   deploy: (opts, callback) ->
     topology = TopologyUtils.loadTopology opts
 
-    LambdaUtils.deployProcessors topology, opts, (err, lambdas) ->
-      AWSUtils.deployStreams topology, opts, lambdas, (err, streams) ->
-        gateway = undefined
+    async.waterfall [
+      (done) ->
+        if opts.skip?.processors
+          LambdaUtils.getProcessorInfo topology, opts, (err, lambdas) ->
+            results = {lambdas}
+            done err, results
+        else
+          LambdaUtils.deployProcessors topology, opts, (err, lambdas) ->
+            results = {lambdas}
+            done err, results
+      (results, done) ->
+        console.log "DEPLOY STREAMS", results
+        if opts.skip?.streams
+          return done null, results
+
+        {lambdas} = results
+        AWSUtils.deployStreams topology, opts, lambdas, (err, streams) ->
+          results.streams = streams
+          done null, results
+      (results, done) ->
+        if opts.skip?.config
+          return done null, results
+
         async.parallel [
           (done) ->
             if topology.api
@@ -106,7 +126,7 @@ Attak =
                 environment: opts.environment
 
               AWSUtils.setupGateway topology.api, gatewayOpts, (err, results) ->
-                gateway = results
+                results.gateway = results
                 done err
             else
               done()
@@ -123,14 +143,21 @@ Attak =
             else
               done()
         ], (err) ->
-          if topology.provision
-            config =
-              aws:
-                endpoints: {}
+          done err, results
+      (results, done) ->
+        if opts.skip?.provision
+          return done null, results
 
-            topology.provision topology, config, (err) ->
-              callback err, {'lambdas', 'streams', gateway}
-          else
-            callback? err, {lambdas, streams, gateway}
+        if topology.provision
+          config =
+            aws:
+              endpoints: {}
+
+          topology.provision topology, config, (err) ->
+            done err, results
+        else
+          done? err, results
+    ], (err, results) ->
+      callback? err, results
 
 module.exports = Attak
