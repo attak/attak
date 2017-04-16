@@ -98,7 +98,7 @@ SimulationUtils =
 
   runSimulations: (program, topology, input, simOpts, callback) ->
     allResults = {}
-    SimulationUtils.setupSimulationDeps allResults, program, topology, input, simOpts, (err, endpoints) ->
+    SimulationUtils.setupSimulationDeps allResults, program, topology, simOpts, (err, endpoints) ->
       AWSUtils.deploySimulationStreams program, topology, (streamNames) ->
         async.eachOf input, (data, processor, next) ->
           SimulationUtils.runSimulation allResults, program, topology, simOpts, data, processor, ->
@@ -113,7 +113,7 @@ SimulationUtils =
           else
             callback? err, allResults
 
-  setupSimulationDeps: (allResults, program, topology, input, simOpts, callback) ->
+  setupSimulationDeps: (allResults, program, topology, simOpts, callback) ->
     program.endpoints = {}
 
     async.parallel [
@@ -136,16 +136,18 @@ SimulationUtils =
           done()
 
       (done) ->
-        SimulationUtils.spoofAWS allResults, program, topology, input, simOpts, (err, url) ->
+        SimulationUtils.spoofAWS allResults, program, topology, simOpts, (err, url) ->
           iot = new AWS.Iot
+            region: program.region || 'us-east-1'
+
           iot.describeEndpoint {}, (err, results) ->
-            program.endpoints.api = url
+            program.endpoints.aws = url
             program.endpoints.iot = results?.endpointAddress
             done err
 
       (done) ->
         if topology.api
-          SimulationUtils.spoofApi allResults, program, topology, input, simOpts, (err, url) ->
+          SimulationUtils.spoofApi allResults, program, topology, simOpts, (err, url) ->
             program.endpoints.api = url
             done err
         else
@@ -153,7 +155,7 @@ SimulationUtils =
 
       (done) ->
         if topology.static
-          SimulationUtils.spoofStaticHosting allResults, program, topology, input, simOpts, (err, url) ->
+          SimulationUtils.spoofStaticHosting allResults, program, topology, simOpts, (err, url) ->
             program.endpoints.static = url
             done err
         else
@@ -161,7 +163,7 @@ SimulationUtils =
 
       (done) ->
         if topology.schedule
-          SimulationUtils.spoofScheduler allResults, program, topology, input, simOpts, (err, results) ->
+          SimulationUtils.spoofScheduler allResults, program, topology, simOpts, (err, results) ->
             done err
         else
           done()
@@ -175,9 +177,9 @@ SimulationUtils =
         topology.provision topology, config, (err) ->
           callback err, program.endpoints
       else
-        callback null, program.endpoints
+        callback err, program.endpoints
 
-  spoofScheduler: (allResults, program, topology, input, simOpts, callback) ->
+  spoofScheduler: (allResults, program, topology, simOpts, callback) ->
     start = new Date().getTime()
 
     triggerEvent = (procName, defs) ->
@@ -218,7 +220,7 @@ SimulationUtils =
     , ->
       callback()
 
-  spoofAWS: (allResults, program, topology, input, simOpts, callback) ->
+  spoofAWS: (allResults, program, topology, simOpts, callback) ->
     hostname = '127.0.0.1'
     port = 12368
     
@@ -276,9 +278,9 @@ SimulationUtils =
             res.end response
     
     server.listen port, hostname, ->
-      callback()
+      callback null, "http://localhost:#{port}"
 
-  spoofStaticHosting: (allResults, program, topology, input, simOpts, callback) ->
+  spoofStaticHosting: (allResults, program, topology, simOpts, callback) ->
     workingDir = program.cwd || process.cwd()
     hostname = '127.0.0.1'
     port = 12342
@@ -296,12 +298,12 @@ SimulationUtils =
       .resume()
     
     server.listen port, hostname, ->
-      ngrok.connect port, (err, url) ->
+      unless simOpts.silent is true
         console.log "Static files hosted at: http://localhost:#{port}/[file path]"
-        console.log "Externally visible url: #{url}/[file [path]"
-        callback null, "http://localhost:#{port}"
+        # console.log "Externally visible url: #{url}/[file [path]"
+      callback null, "http://localhost:#{port}"
 
-  spoofApi: (allResults, program, topology, input, simOpts, callback) ->
+  spoofApi: (allResults, program, topology, simOpts, callback) ->
     hostname = '127.0.0.1'
     port = 12369
     
@@ -334,10 +336,14 @@ SimulationUtils =
           res.end response
     
     server.listen port, hostname, ->
-      ngrok.connect port, (err, url) ->
-        console.log "API running at: http://localhost:#{port}"
-        console.log "Externally visible url:", url
+      if simOpts.publicUrl is false
         callback null, "http://localhost:#{port}"
+      else
+        ngrok.connect port, (err, url) ->
+          unless simOpts.silent
+            console.log "API running at: http://localhost:#{port}"
+            console.log "Externally visible url:", url
+          callback null, "http://localhost:#{port}"
 
   runSimulation: (allResults, program, topology, simOpts, data, processor, callback) ->
     eventQueue = [{processor: processor, input: data}]
