@@ -15,6 +15,22 @@ log = -> if DEBUG then console.log arguments...
 
 LambdaUtils =
 
+  getProcessorInfo: (topology, opts, callback) ->
+    awsLambda = new AWS.Lambda
+      region: opts.region || 'us-east-1'
+
+    lambdas = {}
+    async.forEachOf topology.processors, (processor, name, next) ->
+      functionName = "#{name}-#{opts.environment || 'development'}"
+      params =
+        FunctionName: functionName
+
+      awsLambda.getFunction params, (err, results) ->
+        lambdas[functionName] = results
+        next()
+    , (err) ->
+      callback err, lambdas
+
   deployProcessors: (topology, program, callback) ->
     log "Deploying processors"
     retval = {}
