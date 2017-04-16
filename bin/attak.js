@@ -4,7 +4,6 @@ require('coffee-script/register');
 var fs = require('fs');
 var dotenv = require('dotenv');
 var attak = require('../lib/main');
-var program = require('commander');
 
 var packageJson = fs.existsSync(process.cwd() + '/package.json') ? require(process.cwd() + '/package.json') : {};
 var packageJsonName = packageJson.name || 'UnnamedFunction';
@@ -44,61 +43,51 @@ var close = function() {
   }, 500)
 }
 
-program
-  .command('deploy')
-  .version(attak.version)
-  .description('Deploy your attak application to Amazon Lambda')
-  .option('-e, --environment [' + AWS_ENVIRONMENT + ']', 'Choose environment {dev, staging, production}', AWS_ENVIRONMENT)
-  .option('-a, --accessKey [' + AWS_ACCESS_KEY_ID + ']', 'AWS Access Key', AWS_ACCESS_KEY_ID)
-  .option('-s, --secretKey [' + AWS_SECRET_ACCESS_KEY + ']', 'AWS Secret Key', AWS_SECRET_ACCESS_KEY)
-  .option('-P, --profile [' + AWS_PROFILE + ']', 'AWS Profile', AWS_PROFILE)
-  .option('-k, --sessionToken [' + AWS_SESSION_TOKEN + ']', 'AWS Session Token', AWS_SESSION_TOKEN)
-  .option('-r, --region [' + AWS_REGION + ']', 'AWS Region', AWS_REGION)
-  .option('-n, --functionName [' + AWS_FUNCTION_NAME + ']', 'Lambda FunctionName', AWS_FUNCTION_NAME)
-  .option('-H, --handler [' + AWS_HANDLER + ']', 'Lambda Handler {index.handler}', AWS_HANDLER)
-  .option('-o, --role [' + AWS_ROLE + ']', 'Amazon Role ARN', AWS_ROLE)
-  .option('-m, --memorySize [' + AWS_MEMORY_SIZE + ']', 'Lambda Memory Size', AWS_MEMORY_SIZE)
-  .option('-t, --timeout [' + AWS_TIMEOUT + ']', 'Lambda Timeout', AWS_TIMEOUT)
-  .option('-d, --description [' + AWS_DESCRIPTION + ']', 'Lambda Description', AWS_DESCRIPTION)
-  .option('-u, --runtime [' + AWS_RUNTIME + ']', 'Lambda Runtime', AWS_RUNTIME)
-  .option('-p, --publish [' + AWS_PUBLISH + ']', 'Lambda Publish', AWS_PUBLISH)
-  .option('-L, --lambdaVersion [' + AWS_FUNCTION_VERSION + ']', 'Lambda Function Version', AWS_FUNCTION_VERSION)
-  .option('-b, --vpcSubnets [' + AWS_VPC_SUBNETS + ']', 'Lambda Function VPC Subnets', AWS_VPC_SUBNETS)
-  .option('-g, --vpcSecurityGroups [' + AWS_VPC_SECURITY_GROUPS + ']', 'Lambda VPC Security Group', AWS_VPC_SECURITY_GROUPS)
-  .option('-A, --packageDirectory [' + PACKAGE_DIRECTORY + ']', 'Local Package Directory', PACKAGE_DIRECTORY)
-  .option('-f, --configFile [' + CONFIG_FILE + ']', 'Path to file holding secret environment variables (e.g. "deploy.env")', CONFIG_FILE)
-  .option('-x, --excludeGlobs [' + EXCLUDE_GLOBS + ']', 'Space-separated glob pattern(s) for additional exclude files (e.g. "event.json dotenv.sample")', EXCLUDE_GLOBS)
-  .option('-D, --prebuiltDirectory [' + PREBUILT_DIRECTORY + ']', 'Prebuilt directory', PREBUILT_DIRECTORY)
-  .action(function (prg) {
-    attak.deploy(prg, close);
-  });
-
-program
-  .command('init')
-  .description('Create scaffolding for a new attak project')
-  .action(function (prg) {
-    attak.init(prg, close);
-  });
-
-program
-  .command('simulate')
-  .description('Simulate an attak topology by running it locally')
-  .option('-dy, --dynamo', 'Run local dynamodb simulator', LOCAL_DYNAMO)
-  .option('-j, --inputFile [' + INPUT_FILE + ']', 'Event JSON File', INPUT_FILE)
-  .option('-i, --id [' + LOGIN_NAME + ']', 'Debug session ID (defaults to username)', LOGIN_NAME)
-  .action(function (prg) {
-    attak.simulate(prg, close);
-  });
-
-program
-  .command('trigger')
-  .description('Trigger one or more streams')
-  .option('-r, --region [' + AWS_REGION + ']', 'AWS Region', AWS_REGION)
-  .option('-j, --inputFile [' + INPUT_FILE + ']', 'Event JSON File', INPUT_FILE)
-  .option('-e, --environment [' + AWS_ENVIRONMENT + ']', 'Choose environment {dev, staging, production}', AWS_ENVIRONMENT)
-
-  .action(function (prg) {
-    attak.trigger(prg, close);
-  });
-
-program.parse(process.argv);
+require('yargs')
+  .command('deploy', 'Deploy an ATTAK topology', function(yargs) {
+    yargs.option('environment', {alias: 'e', default: AWS_ENVIRONMENT})
+    yargs.option('accessKey', {alias: 'a', default: AWS_ACCESS_KEY_ID})
+    yargs.option('secretKey', {alias: 's', default: AWS_SECRET_ACCESS_KEY})
+    yargs.option('profile', {alias: 'P', default: AWS_PROFILE})
+    yargs.option('sessionToken', {alias: 'k', default: AWS_SESSION_TOKEN})
+    yargs.option('region', {alias: 'r', default: AWS_REGION})
+    yargs.option('handler', {alias: 'H', default: AWS_HANDLER})
+    yargs.option('role', {alias: 'o', default: AWS_ROLE})
+    yargs.option('memorySize', {alias: 'm', default: AWS_MEMORY_SIZE})
+    yargs.option('timeout', {alias: 't', default: AWS_TIMEOUT})
+    yargs.option('description', {alias: 'd', default: AWS_DESCRIPTION})
+    yargs.option('runtime', {alias: 'u', default: AWS_RUNTIME})
+    yargs.option('publish', {alias: 'p', default: AWS_PUBLISH})
+    yargs.option('lambdaVersion', {alias: 'L', default: AWS_FUNCTION_VERSION})
+    yargs.option('vpcSubnets', {alias: 'b', default: AWS_VPC_SUBNETS})
+    yargs.option('vpcSecurityGroups', {alias: 'g', default: AWS_VPC_SECURITY_GROUPS})
+    yargs.option('packageDirectory', {alias: 'A', default: PACKAGE_DIRECTORY})
+    yargs.option('configFile', {alias: 'f', default: CONFIG_FILE})
+    yargs.option('excludeGlobs', {alias: 'x', default: EXCLUDE_GLOBS})
+    yargs.option('prebuiltDirectory', {alias: 'D', default: PREBUILT_DIRECTORY})
+    return yargs
+  }, function(argv) {
+    attak.deploy(argv, close);
+  })
+  .command('init', 'Create scaffolding for a new attak project', function(yargs) {
+    return yargs
+  }, function(argv) {
+    attak.init(argv, close);
+  })
+  .command('simulate', 'Simulate an attak topology by running it locally', function(yargs) {
+    yargs.option('dynamo', {alias: 'dy', default: LOCAL_DYNAMO})
+    yargs.option('inputFile', {alias: 'j', default: INPUT_FILE})
+    yargs.option('id', {alias: 'i', default: LOGIN_NAME})
+    return yargs
+  }, function(argv) {
+    attak.simulate(argv, close);
+  })
+  .command('trigger', 'Simulate an attak topology by running it locally', function(yargs) {
+    yargs.option('region', {alias: 'r', default: AWS_REGION})
+    yargs.option('inputFile', {alias: 'j', default: INPUT_FILE})
+    yargs.option('environment', {alias: 'e', default: AWS_ENVIRONMENT})
+    return yargs
+  }, function(argv) {
+    attak.simulate(argv, close);
+  })
+  .argv
