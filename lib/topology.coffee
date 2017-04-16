@@ -3,7 +3,14 @@ nodePath = require 'path'
 TopologyUtils =
   loadTopology: (opts) ->
     workingDir = opts.cwd || process.cwd()
-    topology = opts.topology || require workingDir
+
+    if opts.topology
+      if opts.topology.constructor is String
+        topology = require nodePath.resolve(workingDir, opts.topology)
+      else
+        topology = opts.topology
+    else
+      topology = require workingDir
 
     if topology.name is undefined
       throw new Error "Error loading topology: missing name"
