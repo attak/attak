@@ -39,6 +39,7 @@
     "public-ip": "^2.3.3",
     "readdirp": "^2.1.0",
     "s3-sync": "^1.0.1",
+    "rimraf": "^2.6.1",
     "simple-peer": "^6.2.2",
     "socket.io-client": "^1.7.2",
     "through2": "^2.0.3",

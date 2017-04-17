@@ -1,12 +1,15 @@
+fs = require 'fs'
 url = require 'url'
 AWS = require 'aws-sdk'
 uuid = require 'uuid'
 chalk = require 'chalk'
 async = require 'async'
 level = require 'level'
-s3sync = require 's3-sync'
+rimraf = require 'rimraf'
+s3sync = require 's3-sync-aws'
 nodePath = require 'path'
 readdirp = require 'readdirp'
+publicIp = require 'public-ip'
 kinesisStreams = require 'kinesis'
 
 DEBUG = true
@@ -41,7 +44,7 @@ integrationResponses =
     #set ($errorMessage = $input.path('$.errorMessage'))
     #set ($response = $errorMessage.split("#{selectionPatterns.responseDelimeter}"))
     $response[1]
-  """,
+  """
 
   standard: """
     #set ($message = $input.path('$'))
@@ -123,6 +126,7 @@ federatedPolicies =
     """
 
 AWSUtils =
+
   setupStatic: (topology, opts, callback) ->
     workingDir = opts.cwd || process.cwd()
 
@@ -136,8 +140,52 @@ AWSUtils =
     AWSUtils.setupBucket bucketName, opts, (err, results) ->
       log "DONE SETTING UP BUCKET"
       AWSUtils.uploadDir bucketName, staticDir, opts, (err, results) ->
-        AWSUtils.setupBucketPermissions topology, opts, ->
+        AWSUtils.setupBucketPermissions topology, opts, bucketName, ->
           callback()
+
+  getBucketPolicy: (bucketName, type, opts, callback) ->
+    switch type
+      when 'public'
+        callback null, """
+          {
+            "Version":"2012-10-17",
+            "Statement":[
+              {
+                "Sid":"AddPerm",
+                "Effect":"Allow",
+                "Principal": "*",
+                "Action":["s3:GetObject"],
+                "Resource":["arn:aws:s3:::#{bucketName}/*"]
+              }
+            ]
+          }
+        """
+
+      when 'me'
+        publicIp.v4().then (ip) ->
+          callback null, """
+            {
+              "Version":"2012-10-17",
+              "Statement":[
+                {
+                  "Sid":"IPDeny",
+                  "Effect":"Allow",
+                  "Principal": "*",
+                  "Action": ["s3:GetObject"],
+                  "Resource": "arn:aws:s3:::#{bucketName}/*",
+                  "Condition": {
+                     "IpAddress": {"aws:SourceIp": "#{ip}/24"}
+                  }
+                }
+              ]
+            }
+          """
+        .catch (err) ->
+          console.log "CAUGHT IP ERR", err
+          callback err
+
+      else
+        callback "Unknown bucket policy type #{type}"
 
   setupBucket: (bucketName, opts, callback) ->
     s3 = new AWS.S3
@@ -149,7 +197,7 @@ AWSUtils =
     s3.headBucket params, (err, results) ->
       if err and err.code is 'NotFound'
         params =
-          ACL: 'public-read'
+          # ACL: 'public-read'
           Bucket: bucketName
 
         s3.createBucket params, (err, results) ->
@@ -158,15 +206,17 @@ AWSUtils =
       else
         callback()
 
-  setupStaticRole: (topology, opts, callback) ->
+  setupAuthRole: (topology, opts, callback) ->
+    if topology.static.auth?.federated is undefined
+      return callback()
+
     iam = new AWS.IAM
       region: opts.region || 'us-east-1'
 
     environment = opts.environment || 'development'
-    roleName = "static-#{topology.name}-#{environment}"
+    roleName = "static-auth-#{topology.name}-#{environment}"
 
     iam.listRoles {}, (err, results) ->
-      console.log "ROLES", err, results
       existing = undefined
       for role in results.Roles
         if role.RoleName is roleName
@@ -188,67 +238,115 @@ AWSUtils =
         log "CREATE STATIC ROLE RESULTS", err, results
         callback err, results.Arn
 
-  setupBucketPermissions: (topology, opts, callback) ->
+  setupBucketPermissions: (topology, opts, bucketName, callback) ->
+    log "SETUP BUCKET PERMISSIONS", bucketName
+
+    AWSUtils.setupBucketPolicy topology, opts, bucketName, (err) ->
+      AWSUtils.setupAuthRole topology, opts, (err, roleArn) ->
+        AWSUtils.setupInvocationPolicies topology, opts, roleArn, callback
+
+  getPolicyByName: (iam, policyName, callback) ->
+    iam.listPolicies {}, (err, results) ->
+      existing = undefined
+      for policy in results.Policies
+        if policy.PolicyName is policyName
+          existing = policy
+
+      if existing is undefined
+        return callback()
+
+      params =
+        PolicyArn: existing.Arn
+
+      iam.getPolicy params, (err, results) ->
+        callback err, results
+
+  setupBucketPolicy: (topology, opts, bucketName, callback) ->
+    log "SETUP BUCKET POLICY", bucketName
+    s3 = new AWS.S3
+      region: opts.region || 'us-east-1'
+
+    environment = opts.environment || 'development'
+    policyName = "static-access-#{topology.name}-#{environment}"
+
+
+    policyType = topology.static.access?.type || topology.static.access || 'public'
+    AWSUtils.getBucketPolicy bucketName, policyType, opts, (err, policyDoc) ->
+      if err then return callback err
+
+      if policyDoc is undefined
+        return callback()
+
+      params =
+        Bucket: bucketName
+        Policy: policyDoc
+
+      log "CREATING STATIC ACCESS POLICY", policyName, policyDoc
+
+      s3.putBucketPolicy params, (err, results) ->
+        log "CREATE STATIC POLICY RESULTS", err, results
+        callback err, results.Arn
+
+  setupInvocationPolicies: (topology, opts, roleArn, callback) ->
     if topology.static.permissions?.invoke is undefined
       return callback()
 
     lambda = new AWS.Lambda
       region: opts.region || 'us-east-1'
 
-    AWSUtils.setupStaticRole topology, opts, (err, roleArn) ->
-      splitArn = roleArn.split ':'
-      accountId = splitArn[4]
+    splitArn = roleArn.split ':'
+    accountId = splitArn[4]
 
-      async.each topology.static.permissions.invoke, (target, next) ->
-        environment = opts.environment || 'development'
-        functionName = "#{target}-#{environment}"
+    async.each topology.static.permissions.invoke, (target, next) ->
+      environment = opts.environment || 'development'
+      functionName = "#{target}-#{environment}"
 
-        async.waterfall [
-          (done) ->
-            params =
-              FunctionName: functionName
+      async.waterfall [
+        (done) ->
+          params =
+            FunctionName: functionName
 
-            lambda.getPolicy params, (err, results) ->
-              log "GET POLICY RESULTS", results
-              if err
-                policy = undefined
-              else
-                policy = JSON.parse(results?.Policy)
-              
-              done null, policy
+          lambda.getPolicy params, (err, results) ->
+            log "GET POLICY RESULTS", results
+            if err
+              policy = undefined
+            else
+              policy = JSON.parse(results?.Policy)
+            
+            done null, policy
 
-          # (policy, done) ->
-          #   params =
-          #     StatementId: "static-#{topology.name}-#{opts.environment || 'development'}"
-          #     FunctionName: functionName
+        # (policy, done) ->
+        #   params =
+        #     StatementId: "static-#{topology.name}-#{opts.environment || 'development'}"
+        #     FunctionName: functionName
 
-          #   lambda.removePermission params, (err, results) ->
-          #     console.log "REMOVE PERMISSION RESULTS", err, results
-          #     setTimeout ->
-          #       console.log "DONE REMOVING PERMISSIONS"
-          #       done null, policy
-          #     , 60000
+        #   lambda.removePermission params, (err, results) ->
+        #     console.log "REMOVE PERMISSION RESULTS", err, results
+        #     setTimeout ->
+        #       console.log "DONE REMOVING PERMISSIONS"
+        #       done null, policy
+        #     , 60000
 
-          (policy, done) ->
-            statementName = "static-#{topology.name}-#{target}-#{opts.environment || 'development'}"
-            for statement in (policy?.Statement || [])
-              if statement.Sid is statementName
-                return done null
+        (policy, done) ->
+          statementName = "static-#{topology.name}-#{target}-#{opts.environment || 'development'}"
+          for statement in (policy?.Statement || [])
+            if statement.Sid is statementName
+              return done null
 
-            params =
-              Action: "lambda:InvokeFunction"
-              Principal: roleArn
-              # SourceArn: "arn:aws:sts::#{accountId}:assumed-role/#{statementName}/#{topology.name}"
-              StatementId: statementName
-              FunctionName: functionName
+          params =
+            Action: "lambda:InvokeFunction"
+            Principal: roleArn
+            # SourceArn: "arn:aws:sts::#{accountId}:assumed-role/#{statementName}/#{topology.name}"
+            StatementId: statementName
+            FunctionName: functionName
 
-            lambda.addPermission params, (err, results) ->
-              log "ADD STATIC #{target} PERMISSIONS RESULTS", err, results
-              done err
-        ], (err, results) ->
-          next err
-      , (err) ->
-        callback()
+          lambda.addPermission params, (err, results) ->
+            log "ADD STATIC #{target} PERMISSIONS RESULTS", err, results
+            done err
+      ], (err, results) ->
+        next err
+    , (err) ->
+      callback()
 
   uploadDir: (bucketName, staticDir, opts, callback) ->
     s3 = new AWS.S3
@@ -270,6 +368,7 @@ AWSUtils =
 
     params =
       key: opts.accessKey
+      acl: 'public-read'
       secret: opts.secretKey
       bucket: bucketName
       concurrency: 16
