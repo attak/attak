@@ -355,7 +355,9 @@ AWSUtils =
     log "UPLOADING STATIC FILES FROM", staticDir
 
     # To cache the S3 HEAD results and speed up the upload process.
-    db = level nodePath.resolve __dirname, '../uploadcache'
+    cacheDbPath = nodePath.resolve __dirname, '../uploadcache'
+
+    db = level cacheDbPath
     files = readdirp
       root: staticDir
       directoryFilter: [
@@ -382,7 +384,8 @@ AWSUtils =
       log "UPLOAD FAILED", err
 
     uploader.on 'end', ->
-      callback()
+      rimraf cacheDbPath, ->
+        callback()
 
   getApiByName: (name, opts, callback) ->
     gateway = new AWS.APIGateway
