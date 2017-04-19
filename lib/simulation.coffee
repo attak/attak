@@ -336,14 +336,16 @@ SimulationUtils =
           res.end response
     
     server.listen port, hostname, ->
-      if simOpts.publicUrl is false
-        callback null, "http://localhost:#{port}"
-      else
+      if simOpts.publicUrl is true
         ngrok.connect port, (err, url) ->
           unless simOpts.silent
             console.log "API running at: http://localhost:#{port}"
             console.log "Externally visible url:", url
           callback null, "http://localhost:#{port}"
+      else
+        unless simOpts.silent
+          console.log "API running at: http://localhost:#{port}"
+        callback null, "http://localhost:#{port}"
 
   runSimulation: (allResults, program, topology, simOpts, data, processor, callback) ->
     eventQueue = [{processor: processor, input: data}]
