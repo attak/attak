@@ -1,8 +1,8 @@
-attak = require '../'
+attak = require '../../'
 nodePath = require 'path'
-AWSUtils = require '../lib/aws'
+AWSUtils = require '../../lib/aws'
 kinesalite = require 'kinesalite'
-TopologyUtils = require '../lib/topology'
+TopologyUtils = require '../../lib/topology'
 
 kinesisPort = 6668
 kinesisEndpoint = "http://localhost:#{kinesisPort}"
@@ -25,7 +25,8 @@ describe 'simulate', ->
       input: input
       report: -> null
       topology: topology
-      kinesisEndpoint: kinesisEndpoint
+      endpoints:
+        kinesis: kinesisEndpoint
 
     topology = TopologyUtils.loadTopology opts
 
