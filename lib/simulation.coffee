@@ -79,13 +79,13 @@ SimulationUtils =
           iterator = iterators[streamName]
 
           kinesis.getRecords
-            ShardIterator: iterator.ShardIterator
+            ShardIterator: iterator?.ShardIterator
           , (err, rawRecords) ->
             iterators[streamName] =
-              ShardIterator: rawRecords.NextShardIterator
+              ShardIterator: rawRecords?.NextShardIterator
 
             records = []
-            for record in rawRecords.Records
+            for record in (rawRecords?.Records || [])
               dataString = new Buffer(record.Data, 'base64').toString()
               records.push JSON.parse dataString
 
@@ -118,25 +118,35 @@ SimulationUtils =
 
     async.parallel [
       (done) ->
-        kinesaliteServer = kinesalite
+        if SimulationUtils.kinesaliteServer
+          return done() 
+
+        SimulationUtils.kinesaliteServer = kinesalite
           path: nodePath.resolve __dirname, '../kinesisdb'
           createStreamMs: 0
 
-        kinesaliteServer.listen 6668, (err) ->
+        SimulationUtils.kinesaliteServer.listen 6668, (err) ->
           program.endpoints.kinesis = 'http://localhost:6668'
           done()
 
       (done) ->
-        dynaliteServer = dynalite
+        if SimulationUtils.dynaliteServer
+          return done() 
+
+        SimulationUtils.dynaliteServer = dynalite
           path: nodePath.resolve __dirname, '../dynamodb'
           createStreamMs: 0
 
-        dynaliteServer.listen 6698, (err) ->
+        SimulationUtils.dynaliteServer.listen 6698, (err) ->
           program.endpoints.dynamodb = 'http://localhost:6698'
           done()
 
       (done) ->
+        if SimulationUtils.hasSpoofAWS
+          return done()
         SimulationUtils.spoofAWS allResults, program, topology, simOpts, (err, url) ->
+          SimulationUtils.hasSpoofAWS = true
+          
           iot = new AWS.Iot
             region: program.region || 'us-east-1'
 
