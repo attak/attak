@@ -7,11 +7,11 @@ async = require 'async'
 parser = require 'cron-parser'
 nodePath = require 'path'
 dynalite = require 'dynalite'
-AWSUtils = require './aws'
+AWSUtils = require '../aws'
 AttakProc = require 'attak-processor'
 kinesalite = require 'kinesalite'
 staticHost = require 'node-static'
-TopologyUtils = require './topology'
+TopologyUtils = require '../topology'
 
 SimulationUtils =
 
@@ -122,7 +122,7 @@ SimulationUtils =
           return done() 
 
         SimulationUtils.kinesaliteServer = kinesalite
-          path: nodePath.resolve __dirname, '../kinesisdb'
+          path: nodePath.resolve __dirname, '../../kinesisdb'
           createStreamMs: 0
 
         SimulationUtils.kinesaliteServer.listen 6668, (err) ->
@@ -134,7 +134,7 @@ SimulationUtils =
           return done() 
 
         SimulationUtils.dynaliteServer = dynalite
-          path: nodePath.resolve __dirname, '../dynamodb'
+          path: nodePath.resolve __dirname, '../../dynamodb'
           createStreamMs: 0
 
         SimulationUtils.dynaliteServer.listen 6698, (err) ->
