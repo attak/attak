@@ -1,20 +1,64 @@
+async = require 'async'
+extend = require 'extend'
 Differ = require 'deep-diff'
 
 class BaseComponent
 
-  constructor: (@options) ->
+  lifecycle:
+    events: ['init', 'resolve', 'diff']
+    stages: ['before' 'after']
 
-  # Required interface for subclasses
-  getState: (callback) -> callback new Error "Unimplemented"
-  resolveState: (diff, currentState, newState, callback) -> callback new Error "Unimplemented"
+  constructor: (@options={}) ->
+    @children = @options.children || {}
+    @dependencies = @options.dependencies || []
+    @listeners = {}
 
-  # Universal mechanics
+  getState: (callback) ->
+    callback new Error "Unimplemented"
+
+  create: (path, newDefs, callback) ->
+    callback new Error "Unimplemented"
+
+  delete: (path, oldDefs, callback) ->
+    callback new Error "Unimplemented"
+
+  add: (path, index, item, callback) ->
+    callback new Error "Unimplemented"
+
+  update: (path, oldDefs, newDefs, callback) ->
+    @delete path, oldDefs, (err, results) =>
+      if err then return callback err
+      @create newDefs, callback
+
   setState: (newState, callback) ->
     @getState (err, currentState) =>
       differences = Differ.diff currentState, newState
       @resolveState currentState, newState, differences, (err, results) ->
         callback err, results
 
+  handleDiff: (diff, callback) ->
+    console.log "DIFF", diff
+    switch diff.kind
+      when 'N'
+        @create diff.path || [], diff.rhs, callback
+      when 'E'
+        @update diff.path || [], diff.lhs, diff.rhs, callback
+      when 'D'
+        @delete diff.path || [], diff.lhs, callback
+      when 'A'
+        @add diff.path || [], diff.index, diff.item, callback
+      else
+        callback "Unknown diff type #{diff.kind || diff}"
+
+  resolveState: (currentState, newState, diffs, callback) ->
+    async.eachSeries diffs, (diff, next) ->
+      if @children?[diff.path?[0]]
+        diff.path.shift()
+        @children[diff.path?[0]].handleDiff diff, next
+      else
+        @handleDiff diff, next
+    , (err) ->
+      callback err
 
   getSimulationServices: () ->
     services = {}
@@ -41,5 +85,14 @@ class BaseComponent
       services = extend services, child.getSimulationServices()
 
     return services
+
+  getDependencies: (path) ->
+    deps = @dependencies
+    
+    if @children?[path[0]]
+      child = path.shift()
+      deps = deps.concat @children[child].getDependencies(path)
+    
+    return deps
 
 module.exports = BaseComponent
