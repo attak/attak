@@ -879,10 +879,7 @@ AWSUtils =
   deploySimulationStreams: (program, topology, callback) ->
     names = []
     async.forEachSeries topology.streams, (stream, next) ->
-      streamName = AWSUtils.getStreamName topology.name, stream.from, stream.to,
-        host: url.parse(program.endpoints.kinesis).hostname
-        port: url.parse(program.endpoints.kinesis).port
-
+      streamName = AWSUtils.getStreamName topology.name, stream.from, stream.to
       AWSUtils.createStream program, topology.name, streamName, stream.opts, (err, results) ->
         AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->
           names.push streamName
