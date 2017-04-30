@@ -6,12 +6,13 @@ class BaseComponent
 
   lifecycle:
     events: ['init', 'resolve', 'diff']
-    stages: ['before' 'after']
+    stages: ['before', 'after']
 
   constructor: (@options={}) ->
     @children = @options.children || {}
     @dependencies = @options.dependencies || []
     @listeners = {}
+    @state = {}
 
   getState: (callback) ->
     callback new Error "Unimplemented"
@@ -28,7 +29,7 @@ class BaseComponent
   update: (path, oldDefs, newDefs, callback) ->
     @delete path, oldDefs, (err, results) =>
       if err then return callback err
-      @create newDefs, callback
+      @create path, newDefs, callback
 
   setState: (newState, callback) ->
     @getState (err, currentState) =>
@@ -37,7 +38,6 @@ class BaseComponent
         callback err, results
 
   handleDiff: (diff, callback) ->
-    console.log "DIFF", diff
     switch diff.kind
       when 'N'
         @create diff.path || [], diff.rhs, callback
@@ -51,7 +51,7 @@ class BaseComponent
         callback "Unknown diff type #{diff.kind || diff}"
 
   resolveState: (currentState, newState, diffs, callback) ->
-    async.eachSeries diffs, (diff, next) ->
+    async.eachSeries diffs, (diff, next) =>
       if @children?[diff.path?[0]]
         diff.path.shift()
         @children[diff.path?[0]].handleDiff diff, next

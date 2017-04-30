@@ -12,6 +12,9 @@ class Processors extends BaseComponent
           "POST /:apiVerison/functions/:functionName/invoke-async": @simulateInvoke
 
   getState: (callback) ->
+    callback null, @state
+
+  fetchState: (callback) ->
     state = {}
 
     lambda = new AWS.Lambda
@@ -50,14 +53,17 @@ class Processors extends BaseComponent
 
   create: (path, newDefs, callback) ->
     console.log "CREATING NEW PROCESSOR", path[0], newDefs
+    @state[path[0]] = newDefs
     callback null
 
   update: (path, oldDefs, newDefs, callback) ->
     console.log "UPDATING PROCESSOR", path[0], oldDefs, newDefs
+    @state[path[0]] = newDefs
     callback null
 
   delete: (path, oldDefs, callback) ->
     console.log "REMOVING PROCESSOR", path[0], oldDefs
+    delete @state[path[0]]
     callback null
 
   simulateInvoke: (topology, opts, req, res) ->

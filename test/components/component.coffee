@@ -1,18 +1,18 @@
-require 'coffee-errors'
-
 fs = require 'fs'
+tape = require 'tape'
+tapes = require 'tapes'
 attak = require '../../'
 Differ = require 'deep-diff'
 nodePath = require 'path'
 BaseComponent = require '../../lib/components/base_component'  
 
-describe 'components', ->
-  describe 'base component', ->
-    before (done) ->
-      @component = new BaseComponent
-      done()
+test = tapes tape
 
-    describe 'simulation services', ->
+test 'components', (suite) ->
+
+  suite.test 'base component', (suite) ->
+    
+    suite.test 'simulation services', (suite) ->
 
       class ChildComponent extends BaseComponent
         simulation:
@@ -34,53 +34,49 @@ describe 'components', ->
           @children =
             testChild: new ChildComponent
 
-      before (done) ->
+      suite.beforeEach (suite) ->
         @component = new ParentComponent
-        done()
+        suite.end()
 
-      it 'should get config data from inside an array', (done) ->
+      suite.test 'should get config data from inside an array', (suite) ->
         services = @component.getSimulationServices()
-        if services?['other:parent:service']?.some is 'config'
-          done()
-        else
-          done 'failed to get service config from inside services array'
+        suite.equal services?['other:parent:service']?.some, 'config'
+        suite.end()
 
-      it 'should fetch a list of simulation services', (done) ->
+      suite.test 'should fetch a list of simulation services', (suite) ->
         services = @component.getSimulationServices()
         
-        if services is undefined
-          return done 'returned undefined services'
+        suite.notEqual services, undefined, 'failed to find any services'
+        suite.notEqual services.length, 0
+        suite.notEqual services['parent:service'], undefined, 'failed to find top level component services'
+        suite.notEqual services['other:parent:service'], undefined, 'failed to find top level component services'
+        suite.notEqual services['child:service'], undefined, 'failed to find child services'
 
-        if services.length is 0
-          return done 'failed to find any services'
+        suite.end()
+      suite.end()
+    suite.end()
 
-        if services['parent:service'] is undefined or services['other:parent:service'] is undefined
-          return done 'failed to find top level component services'
 
-        if services['child:service'] is undefined
-          return done 'failed to find child services'
+    suite.test 'required impl errors', (suite) ->
 
-        done()
-
-    describe 'required impl errors', ->
-
-      it 'getState', (done) ->
-        try
+      suite.test 'gets state', (suite) ->
+        suite.doesNotThrow =>
           @component.getState (err, results) ->
-            if err then return done()
-            done 'failed to throw an error for missing implementation'
-        catch e
-          done()
+            suite.notEqual err, undefined, 'failed to throw an error for missing implementation'
+        , undefined, 'failed to throw an error for missing implementation'
+        
+        suite.end()
 
-      it 'resolveDiff', (done) ->
-        try
+      suite.test 'resolveDiff', (suite) ->
+        suite.doesNotThrow =>
           @component.getState (err, results) ->
-            if err then return done()
-            done 'failed to throw an error for missing implementation'
-        catch e
-          done()
+            suite.notEqual err, undefined, 'failed to throw an error for missing implementation'
+        , undefined, 'failed to throw an error for missing implementation'
+
+        suite.end()
+      suite.end()
     
-    describe 'setState', ->
+    suite.test 'setState', (suite) ->
 
       class SimpleComponent extends BaseComponent
         getState: (callback) ->
@@ -92,20 +88,20 @@ describe 'components', ->
           @state = newState
           callback()
 
-      before (done) ->
+      suite.beforeEach (suite) ->
         @component = new SimpleComponent
-        done()
+        suite.end()
 
-      it 'should set state successfully', (done) ->
+      suite.test 'should set state successfully', (suite) ->
         @component.setState {working: true}, (err, results) =>
           @component.getState (err, state) ->
             differences = Differ.diff state, {working: true}
-            if differences?.length > 0
-              done 'failed to set state'
-            else
-              done()
+            suite.equal differences?.length > 0, false, 'failed to set state'
 
-  describe 'generic tests', ->
+            suite.end()
+      suite.end()
+
+  suite.test 'generic tests', (suite) ->
     files = fs.readdirSync __dirname
 
     for file in files
@@ -116,10 +112,12 @@ describe 'components', ->
 
       componentName = nodePath.basename file, '.coffee'
 
-      describe componentName, =>
+      suite.test componentName, (suite) =>
 
-        it 'should provide a list of supported platforms', (done) ->
-          if component.platforms is undefined
-            done 'failed to provide platform list'
-          else
-            done()
+        suite.test 'should provide a list of supported platforms', (suite) ->
+          suite.notEqual component.platforms, undefined
+
+          suite.end()
+        suite.end()
+    suite.end()
+  suite.end()
