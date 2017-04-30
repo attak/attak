@@ -8,12 +8,61 @@ BaseComponent = require '../../lib/components/base_component'
 
 describe 'components', ->
   describe 'base component', ->
+    before (done) ->
+      @component = new BaseComponent
+      done()
 
-    describe 'required impl errors', ->
+    describe 'simulation services', ->
+
+      class ChildComponent extends BaseComponent
+        simulation:
+          services: [
+            'child:service'
+          ]
+
+      class ParentComponent extends BaseComponent
+        simulation:
+          services: [
+            'parent:service'
+            {
+              'other:parent:service': {some: 'config'}
+            }
+          ]
+
+        constructor: (@options) ->
+          super @options
+          @children =
+            testChild: new ChildComponent
 
       before (done) ->
-        @component = new BaseComponent
+        @component = new ParentComponent
         done()
+
+      it 'should get config data from inside an array', (done) ->
+        services = @component.getSimulationServices()
+        if services?['other:parent:service']?.some is 'config'
+          done()
+        else
+          done 'failed to get service config from inside services array'
+
+      it 'should fetch a list of simulation services', (done) ->
+        services = @component.getSimulationServices()
+        
+        if services is undefined
+          return done 'returned undefined services'
+
+        if services.length is 0
+          return done 'failed to find any services'
+
+        if services['parent:service'] is undefined or services['other:parent:service'] is undefined
+          return done 'failed to find top level component services'
+
+        if services['child:service'] is undefined
+          return done 'failed to find child services'
+
+        done()
+
+    describe 'required impl errors', ->
 
       it 'getState', (done) ->
         try
