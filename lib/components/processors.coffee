@@ -1,11 +1,15 @@
 AWS = require 'aws-sdk'
 async = require 'async'
 BaseComponent = require './base_component'
+SimulationUtils = require '../simulation/simulation'
 
 class Processors extends BaseComponent
   platforms: ['AWS']
-  services:
-    AWS: ['lambda']
+  simulation:
+    services:
+      'AWS:Lambda':
+        handlers:
+          "POST /:apiVerison/functions/:functionName/invoke-async": @simulateInvoke
 
   getState: (callback) ->
     state = {}
@@ -37,6 +41,8 @@ class Processors extends BaseComponent
         marker = results.NextMarker
         for data in results.Functions
           functions.push data
+
+        done()
     , () ->
       marker?
     , (err, numPages) ->
@@ -53,4 +59,36 @@ class Processors extends BaseComponent
   delete: (path, oldDefs, callback) ->
     console.log "REMOVING PROCESSOR", path[0], oldDefs
     callback null
+
+  simulateInvoke: (topology, opts, req, res) ->
+    environment = opts.environment || 'development'
+
+    splitPath = req.url.split '/'
+    fullName = splitPath[3]
+    functionName = fullName.split("-#{environment}")[0]
+
+    event =
+      path: req.url
+      body: body
+      headers: req.headers
+      httpMethod: req.method
+      queryStringParameters: req.query
+
+    SimulationUtils.runSimulation allResults, opts, topology, simOpts, event, functionName, ->
+      if allResults[functionName]?.callback.err
+        res.writeHead 500
+        return res.end allResults[functionName]?.callback.err.stack
+
+      response = allResults[functionName]?.callback?.results?.body || ''
+      if not response
+        return res.end()
+
+      try
+        respData = JSON.parse response
+        if respData.status or respData.httpStatus or respData.headers
+          res.writeHead (respData.status || respData.httpStatus || 200), respData.headers
+        res.end respData
+      catch e
+        res.end response
+
 module.exports = Processors
