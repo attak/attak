@@ -8,13 +8,19 @@ class Processors extends BaseComponent
     AWS: ['lambda']
 
   getState: (callback) ->
+    state = {}
+
     lambda = new AWS.Lambda
       region: @options.region || 'us-east-1'
 
-    Processors.getAllFunctions lambda, (err, functions) ->
+    @getAllFunctions lambda, (err, functions) =>
       if err then return callback(err)
 
+      for fn in functions
+        if fn.Environment?.Variables?.ATTAK_TOPOLOGY_NAME is @options.topology.name
+          state[fn.Environment.Variables.ATTAK_PROCESSOR_NAME] = fn
 
+      callback err, state
 
   getAllFunctions: (lambda, callback) ->
     marker = undefined
@@ -36,4 +42,15 @@ class Processors extends BaseComponent
     , (err, numPages) ->
       callback err, functions
 
+  create: (path, newDefs, callback) ->
+    console.log "CREATING NEW PROCESSOR", path[0], newDefs
+    callback null
+
+  update: (path, oldDefs, newDefs, callback) ->
+    console.log "UPDATING PROCESSOR", path[0], oldDefs, newDefs
+    callback null
+
+  delete: (path, oldDefs, callback) ->
+    console.log "REMOVING PROCESSOR", path[0], oldDefs
+    callback null
 module.exports = Processors
