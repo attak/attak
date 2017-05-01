@@ -5,8 +5,8 @@ extend = require 'extend'
 Differ = require 'deep-diff'
 nodePath = require 'path'
 
-STATE_FILE_PATH = nodePath.resolve __dirname, '../state.json'
-SIMULATION_STATE_FILE_PATH = nodePath.resolve __dirname, '../simulation_state.json'
+STATE_FILE_PATH = '../../state.json'
+SIMULATION_STATE_FILE_PATH = '../../simulation_state.json'
 
 class BaseComponent
   lifecycle:
