@@ -1,6 +1,9 @@
 example/attak_runner.js
 example/.env
 
+state.json
+simulation_state.json
+
 node_modules/
 uploadcache/
 kinesisdb/
