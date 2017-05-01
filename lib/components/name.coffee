@@ -6,12 +6,18 @@ class Name extends BaseComponent
   namespace: 'name'
   required: true
 
-  create: (path, newDefs, callback) ->
+  create: (path, newDefs, opts) ->
     # Creating a new name is a noop
-    callback null
+    []
 
   delete: (path, oldDefs, callback) ->
-    console.log "REMOVING NAME", path[0], oldDefs
-    callback null
+    [
+      {
+        msg: 'Remove name'
+        run: (done) ->
+          console.log "REMOVING NAME", path[0], oldDefs
+          done()
+      }
+    ]
 
 module.exports = Name

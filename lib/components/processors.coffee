@@ -50,9 +50,14 @@ class Processors extends BaseComponent
       callback err, functions
 
   create: (path, newDefs, callback) ->
-    console.log "CREATING NEW PROCESSOR", path[0], newDefs
-    @state[path[0]] = newDefs
-    callback null
+    [
+      {
+        msg: "Create new processor #{path[0]}"
+        run: (done) ->
+          console.log "CREATING NEW PROCESSOR", path[0], newDefs
+          done()
+      }
+    ]
 
   update: (path, oldDefs, newDefs, callback) ->
     console.log "UPDATING PROCESSOR", path[0], oldDefs, newDefs

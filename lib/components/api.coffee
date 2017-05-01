@@ -12,15 +12,23 @@ class API extends BaseComponent
     ]
 
   create: (path, newDefs, callback) ->
-    console.log "CREATING NEW API", newDefs
-    @state[path[0]] = newDefs
-    callback null
+    [
+      {
+        msg: 'Create new API'
+        run: (done) ->
+          console.log "CREATING NEW API", newDefs
+          done()
+      }
+    ]
 
   delete: (path, oldDefs, callback) ->
-    if path[0] is undefined
-      return callback null
-    
-    console.log "REMOVING API", path[0], oldDefs
-    callback null
+    [
+      {
+        msg: 'Remove API'
+        run: (done) ->
+          console.log "REMOVING API", path[0], oldDefs
+          done()
+      }
+    ]
 
 module.exports = API

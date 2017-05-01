@@ -34,19 +34,19 @@ class BaseComponent
   getState: (callback) ->
     callback null, @loadState(@path)
 
-  create: (path, newDefs, callback) ->
-    callback new Error "#{@namespace} create() #{path} Unimplemented"
+  create: (path, newDefs, opts) ->
+    throw new Error "#{@namespace} create() #{path} Unimplemented"
 
-  delete: (path, oldDefs, callback) ->
-    callback new Error "#{@namespace} delete() #{path} Unimplemented"
+  delete: (path, oldDefs, opts) ->
+    throw new Error "#{@namespace} delete() #{path} Unimplemented"
 
-  add: (path, index, item, callback) ->
-    callback new Error "#{@namespace} add() #{path} Unimplemented"
+  add: (path, index, item, opts) ->
+    throw new Error "#{@namespace} add() #{path} Unimplemented"
 
-  update: (path, oldDefs, newDefs, callback) ->
-    @delete path, oldDefs, (err, results) =>
-      if err then return callback err
-      @create path, newDefs, callback
+  update: (path, oldDefs, newDefs, opts) ->
+    deletePlan = @delete path, oldDefs, opts
+    createPlan = @create path, newDefs, opts
+    [deletePlan..., createPlan...]
 
   setState: (newState, callback) ->
     @getState (err, currentState) =>
@@ -79,28 +79,45 @@ class BaseComponent
 
     state
 
-  handleDiff: (diff, callback) ->
+  handleDiff: (diff, opts) ->
     switch diff.kind
       when 'N'
-        @create diff.path || [], diff.rhs, callback
+        @create diff.path || [], diff.rhs, opts
       when 'E'
-        @update diff.path || [], diff.lhs, diff.rhs, callback
+        @update diff.path || [], diff.lhs, diff.rhs, opts
       when 'D'
-        @delete diff.path || [], diff.lhs, callback
+        @delete diff.path || [], diff.lhs, opts
       when 'A'
-        @add diff.path || [], diff.index, diff.item, callback
+        @add diff.path || [], diff.index, diff.item, opts
       else
-        callback "Unknown diff type #{diff.kind || diff}"
+        throw new Error "Unknown diff type #{diff.kind || diff}"
 
   resolveState: (currentState, newState, diffs, callback) ->
-    async.eachSeries diffs, (diff, next) =>
-      if @children?[diff.path?[0]]
-        childPath = diff.path.shift()
-        @children[childPath].handleDiff diff, next
-      else
-        @handleDiff diff, next
+    plan = @planResolution currentState, newState, diffs
+    @executePlan currentState, newState, diffs, plan, (err, results) ->
+      console.log "EXECUTE RESULTS", err, results
+      callback err, results
+
+  executePlan: (currentState, newState, diffs, plan, callback) ->
+    console.log "EXECUTE PLAN", @namespace, plan
+    async.eachSeries plan, (item, next) ->
+      console.log "EXECUTE ITEM", item
+      item.run (err) ->
+        next err
     , (err) ->
       callback err
+
+  planResolution: (currentState, newState, diffs) ->
+    plan = []
+    for diff in diffs
+      if @children?[diff.path?[0]]
+        childPath = diff.path.shift()
+        diffPlan = @children[childPath].handleDiff diff
+        plan = [plan..., diffPlan...]
+      else
+        diffPlan = @handleDiff diff, next
+        plan = [plan..., diffPlan...]
+    plan
 
   getSimulationServices: () ->
     services = {}

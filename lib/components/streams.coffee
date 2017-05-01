@@ -12,13 +12,24 @@ class Streams extends BaseComponent
           "POST /": @simulateStreamPutItem
 
   create: (path, newDefs, callback) ->
-    console.log "CREATING NEW STREAM", newDefs
-    @state[path[0]] = newDefs
-    callback null
+    [
+      {
+        msg: "Create new stream"
+        run: (done) ->
+          console.log "CREATING NEW STREAM", newDefs
+          done()
+      }
+    ]
 
   delete: (path, oldDefs, callback) ->
-    console.log "REMOVING STREAM", path[0], oldDefs
-    callback null
+    [
+      {
+        msg: "Remove stream"
+        run: (done) ->
+          console.log "REMOVING STREAM", path[0], oldDefs
+          done()
+      }
+    ]
 
   simulateStreamPutItem: (topology, opts, req, res) ->
     console.log "PUT ITEM", req.body, opts
