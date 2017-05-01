@@ -3,15 +3,13 @@ async = require 'async'
 BaseComponent = require './base_component'
 
 class API extends BaseComponent
+  namespace: 'api'
   platforms: ['AWS']
   simulation:
     services: [
-      ['AWS', 'lambda']
-      ['AWS', 'gateway']
+      'AWS:Lambda'
+      'AWS:Gateway'
     ]
-
-  getState: (callback) ->
-    callback null, @state
 
   create: (path, newDefs, callback) ->
     console.log "CREATING NEW API", newDefs
@@ -19,6 +17,9 @@ class API extends BaseComponent
     callback null
 
   delete: (path, oldDefs, callback) ->
+    if path[0] is undefined
+      return callback null
+    
     console.log "REMOVING API", path[0], oldDefs
     callback null
 

@@ -1,9 +1,11 @@
+fs = require 'fs'
 AWS = require 'aws-sdk'
 http = require 'http'
 uuid = require 'uuid'
 ngrok = require 'ngrok'
 chalk = require 'chalk'
 async = require 'async'
+ATTAK = require '../attak'
 parser = require 'cron-parser'
 nodePath = require 'path'
 dynalite = require 'dynalite'
@@ -12,6 +14,7 @@ AttakProc = require 'attak-processor'
 kinesalite = require 'kinesalite'
 staticHost = require 'node-static'
 TopologyUtils = require '../topology'
+ServiceManager = require './service_manager'
 
 SimulationUtils =
 
@@ -95,6 +98,55 @@ SimulationUtils =
             done err
         , (err) ->
           callback err, resultData
+
+  setupAndRun: (opts, callback) ->
+    topology = TopologyUtils.loadTopology opts
+
+    opts.startTime = new Date
+    opts.environment = opts.environment || 'development'
+
+    app = new ATTAK
+      topology: topology
+      simulation: true
+      environment: opts.environment
+
+    app.setup ->
+      services = app.getSimulationServices()
+      console.log "SERVICES", services
+
+      manager = new ServiceManager
+      manager.setup services, (err, services) ->
+        console.log "ALL SETUP", err, services
+        app.setState topology, (err, results) ->
+          console.log "SET STATE RESULTS", err, results
+
+  oldThing: ->
+    if opts.input
+      input = opts.input
+    else
+      inputPath = nodePath.resolve (opts.cwd || process.cwd()), opts.inputFile
+      if fs.existsSync inputPath
+        input = require inputPath
+      else
+        input = undefined
+
+    if opts.id
+      CommUtils.connect opts, (socket, wrtc) ->
+        wrtc.emit 'topology',
+          topology: topology
+
+        emitter = wrtc.emit
+        wrtc.reconnect = (wrtc) ->
+          emitter = wrtc.emit
+
+        simOpts =
+          report: () ->
+            emitter? arguments...
+
+        SimulationUtils.runSimulations opts, topology, input, simOpts, callback
+
+    else
+      SimulationUtils.runSimulations opts, topology, input, {}, callback
 
   runSimulations: (program, topology, input, simOpts, callback) ->
     allResults = {}

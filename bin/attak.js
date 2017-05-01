@@ -3,7 +3,8 @@ require('coffee-script/register');
 
 var fs = require('fs');
 var dotenv = require('dotenv');
-var attak = require('../lib/main');
+var SimulationUtils = require('../lib/simulation/simulation')
+var ATTAK = require('../lib/attak');
 
 var packageJson = fs.existsSync(process.cwd() + '/package.json') ? require(process.cwd() + '/package.json') : {};
 var packageJsonName = packageJson.name || 'UnnamedFunction';
@@ -67,12 +68,12 @@ require('yargs')
     yargs.option('prebuiltDirectory', {alias: 'D', default: PREBUILT_DIRECTORY})
     return yargs
   }, function(argv) {
-    attak.deploy(argv, close);
+    ATTAK.deploy(argv, close);
   })
   .command('init', 'Create scaffolding for a new attak project', function(yargs) {
     return yargs
   }, function(argv) {
-    attak.init(argv, close);
+    ATTAK.init(argv, close);
   })
   .command('simulate', 'Simulate an attak topology by running it locally', function(yargs) {
     yargs.option('dynamo', {alias: 'dy', default: LOCAL_DYNAMO})
@@ -80,7 +81,7 @@ require('yargs')
     yargs.option('id', {alias: 'i', default: LOGIN_NAME})
     return yargs
   }, function(argv) {
-    attak.simulate(argv, close);
+    SimulationUtils.setupAndRun(argv, close);
   })
   .command('trigger', 'Simulate an attak topology by running it locally', function(yargs) {
     yargs.option('region', {alias: 'r', default: AWS_REGION})
@@ -88,6 +89,6 @@ require('yargs')
     yargs.option('environment', {alias: 'e', default: AWS_ENVIRONMENT})
     return yargs
   }, function(argv) {
-    attak.simulate(argv, close);
+    ATTAK.simulate(argv, close);
   })
   .argv

@@ -7,7 +7,7 @@ download = require 'download-github-repo'
 CommUtils = require './comm'
 LambdaUtils = require './lambda'
 TopologyUtils = require './topology'
-SimulationUtils = require './simulation'
+SimulationUtils = require './simulation/simulation'
 
 Attak =
   utils:

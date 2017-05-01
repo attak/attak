@@ -4,15 +4,13 @@ BaseComponent = require './base_component'
 SimulationUtils = require '../simulation/simulation'
 
 class Processors extends BaseComponent
+  namespace: 'processors'
   platforms: ['AWS']
   simulation:
-    services:
-      'AWS:Lambda':
+    services: ->
+      'AWS:API':
         handlers:
-          "POST /:apiVerison/functions/:functionName/invoke-async": @simulateInvoke
-
-  getState: (callback) ->
-    callback null, @state
+          "POST /:apiVerison/functions/:functionName/invoke-async": @handleInvoke
 
   fetchState: (callback) ->
     state = {}
@@ -66,7 +64,7 @@ class Processors extends BaseComponent
     delete @state[path[0]]
     callback null
 
-  simulateInvoke: (topology, opts, req, res) ->
+  handleInvoke: (topology, opts, req, res) ->
     environment = opts.environment || 'development'
 
     splitPath = req.url.split '/'
