@@ -45,7 +45,7 @@
     "public-ip": "^2.3.3",
     "readdirp": "^2.1.0",
     "rimraf": "^2.6.1",
-    "s3-sync-aws": "^1.1.1",
+    "s3-sync-aws": "git+https://git@github.com/attak/s3-sync-aws.git",
     "simple-peer": "^6.2.2",
     "socket.io-client": "^1.7.2",
     "tape": "^4.6.3",
