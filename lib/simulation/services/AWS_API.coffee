@@ -1,3 +1,4 @@
+async = require 'async'
 express = require 'express'
 bodyParser = require 'body-parser'
 BaseService = require '../base_service'
@@ -35,13 +36,17 @@ class AWSAPI extends BaseService
       res.writeHead 200, headers
       res.end()
 
-    for route, handler of (opts.handlers || {})
+    async.forEachOf opts.handlers || {}, (handler, route, next) ->
       [methods, fullPath] = route.split ' '
       methods = methods.split ','
 
       for method in methods
+        console.log "HANDLER", method, fullPath
         app[method.toLowerCase()] fullPath, (req, res, next) ->
           handler state, opts, req, res, next
+      next()
+    , ->
+      null
 
     app.listen port, () =>
       callback null, @endpoint
