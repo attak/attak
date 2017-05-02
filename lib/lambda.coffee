@@ -10,7 +10,7 @@ NodeZip = require 'node-zip'
 nodePath = require 'path'
 ProgressBar = require 'progress'
 
-DEBUG = false
+DEBUG = true
 log = -> if DEBUG then console.log arguments...
 
 LambdaUtils =
@@ -31,16 +31,18 @@ LambdaUtils =
     , (err) ->
       callback err, lambdas
 
-  deployProcessors: (topology, program, callback) ->
+  deployProcessors: (opts, callback) ->
     log "Deploying processors"
     retval = {}
-    regions = program.region.split(',')
-    environment = program.environment || 'development'
+    opts.region = opts.region || 'us-east-1'
+
+    regions = opts.region.split(',')
+    environment = opts.environment || 'development'
 
     bar = new ProgressBar 'uploading :bar', 
-      total: Object.keys(topology.processors).length
+      total: Object.keys(opts.processors).length
 
-    runnerPath = require('path').resolve (program.cwd || process.cwd()), './attak_runner.js'
+    runnerPath = require('path').resolve (opts.cwd || process.cwd()), './attak_runner.js'
 
     fs.writeFileSync runnerPath, """
       var procName = process.env.ATTAK_PROCESSOR_NAME
@@ -50,7 +52,7 @@ LambdaUtils =
         var attak = require('attak-processor')
         var topology = attak.utils.topology.loadTopology({})
         var impl = attak.utils.topology.getProcessor({}, topology, procName)
-        var opts = #{JSON.stringify({region: program.region, environment: environment})}
+        var opts = #{JSON.stringify({region: opts.region, environment: environment})}
         exports.handler = attak.handler(procName, topology, impl, opts)
       
       } catch(err) {
@@ -67,54 +69,59 @@ LambdaUtils =
     """
 
     log "Build and archive"
-    LambdaUtils.buildAndArchive program, (err, buffer) ->
+    LambdaUtils.buildAndArchive opts, (err, buffer) ->
       if err
         return callback err
 
-      log "Deploying #{Object.keys(topology.processors).length} processors"
+      log "Deploying #{Object.keys(opts.processors).length} processors"
 
-      async.forEachOf topology.processors, (processor, name, nextProcessor) ->
-        functionName = "#{name}-#{program.environment || 'development'}"
+      async.forEachOf opts.processors, (processor, name, nextProcessor) ->
+        functionName = "#{name}-#{opts.environment || 'development'}"
 
         params = 
           FunctionName: functionName
           Code: ZipFile: buffer
           Handler: 'attak_runner.handler'
-          Role: program.role
-          Runtime: program.runtime
-          Description: program.description
-          MemorySize: program.memorySize
-          Timeout: program.timeout
-          Publish: program.publish
+          Role: opts.role
+          Runtime: opts.runtime
+          Description: opts.description
+          MemorySize: opts.memorySize
+          Timeout: opts.timeout
+          Publish: opts.publish
           VpcConfig: {}
           Environment:
             Variables:
+              ATTAK_TOPOLOGY_NAME: opts.name
               ATTAK_PROCESSOR_NAME: name
 
-        if program.vpcSubnets and program.vpcSecurityGroups
+        if opts.vpcSubnets and opts.vpcSecurityGroups
           params.VpcConfig =
-            SubnetIds: program.vpcSubnets.split ','
-            SecurityGroupIds: program.vpcSecurityGroups.split ','
+            SubnetIds: opts.vpcSubnets.split ','
+            SecurityGroupIds: opts.vpcSecurityGroups.split ','
 
         async.map regions, (region, nextRegion) ->
           aws_security = region: region
           
-          if program.profile
+          if opts.profile
             AWS.config.credentials = new AWS.SharedIniFileCredentials
-              profile: program.profile
+              profile: opts.profile
           else
-            aws_security.accessKeyId = program.accessKey
-            aws_security.secretAccessKey = program.secretKey
+            aws_security.accessKeyId = opts.accessKey
+            aws_security.secretAccessKey = opts.secretKey
           
-          if program.sessionToken
-            aws_security.sessionToken = program.sessionToken
+          if opts.sessionToken
+            aws_security.sessionToken = opts.sessionToken
           
           AWS.config.update aws_security
           
           awsLambda = new AWS.Lambda
             apiVersion: '2015-03-31'
+            endpoint: opts.services['AWS:API'].endpoint
+
+          console.log "USING ENDPOINT", opts.services['AWS:API']
           
           awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
+            console.log "GET FunCTION RESULTS", err, results
             if err
               log "Creating new function", params.FunctionName, params
               awsLambda.createFunction params, (err, results) ->
@@ -204,7 +211,7 @@ LambdaUtils =
             if err
               return callback(err)
 
-            Add custom environment variables if program.configFile is undefined
+            # Add custom environment variables if program.configFile is undefined
             if program.configFile
               lambda._setEnvironmentVars program, codeDirectory
 

@@ -1,16 +1,19 @@
 AWS = require 'aws-sdk'
 async = require 'async'
+LambdaUtils = require '../lambda'
 BaseComponent = require './base_component'
 SimulationUtils = require '../simulation/simulation'
 
 class Processors extends BaseComponent
   namespace: 'processors'
   platforms: ['AWS']
+  dependencies: ['name']
   simulation:
     services: ->
       'AWS:API':
         handlers:
           "POST /:apiVerison/functions/:functionName/invoke-async": @handleInvoke
+          "GET /:apiVerison/functions/:functionName": @handleGetFunction
 
   fetchState: (callback) ->
     state = {}
@@ -49,22 +52,23 @@ class Processors extends BaseComponent
     , (err, numPages) ->
       callback err, functions
 
-  create: (path, newDefs, callback) ->
-    [
-      {
-        msg: "Create new processor #{path[0]}"
-        run: (done) ->
-          console.log "CREATING NEW PROCESSOR", path[0], newDefs
-          done()
-      }
-    ]
+  # create: (path, newDefs, opts) ->
+  resolveState: (currentState, newState, diffs, opts, callback) ->
+    opts =
+      name: opts.dependencies.name
+      services: opts.services
+      processors: newState
 
-  update: (path, oldDefs, newDefs, callback) ->
+    LambdaUtils.deployProcessors opts, (err, results) ->
+      console.log "DONE DEPLOY", err, results
+      callback err
+
+  update: (path, oldDefs, newDefs, opts) ->
     console.log "UPDATING PROCESSOR", path[0], oldDefs, newDefs
     @state[path[0]] = newDefs
     callback null
 
-  delete: (path, oldDefs, callback) ->
+  delete: (path, oldDefs, opts) ->
     console.log "REMOVING PROCESSOR", path[0], oldDefs
     delete @state[path[0]]
     callback null
@@ -99,5 +103,38 @@ class Processors extends BaseComponent
         res.end respData
       catch e
         res.end response
+
+  handleGetFunction: (state, opts, req, res) ->
+    console.log "HANDLING REQUEST", opts, req.method, req.url, req.params
+    name = req.params.functionName
+
+    if state.processors?[name] is undefined
+      console.log "404 FUNCTION NOT FOUND"
+      res.status 400
+      res.header 'x-amzn-errortype', 'ResourceNotFoundException'
+      res.json
+        message: "Function not found: arn:aws:lambda:us-east-1:133713371337:function:#{name}"
+        code: 'ResourceNotFoundException'
+    else
+      res.json
+        Configuration: 
+          FunctionName: 'lamprey-production'
+          FunctionArn: 'arn:aws:lambda:us-east-1:133713371337:function:lamprey-production'
+          Runtime: 'nodejs4.3'
+          Role: 'arn:aws:iam::133713371337:role/lambda'
+          Handler: 'attak_runner.handler'
+          CodeSize: 5245616
+          Description: ''
+          Timeout: 3
+          MemorySize: 512
+          LastModified: '2016-06-13T05:08:43.436+0000'
+          CodeSha256: 'fEHreHoyS2q8/9dttxsvO/YlHBJ0YMDR6HYhMTlpylo='
+          Version: '$LATEST'
+          KMSKeyArn: null
+          TracingConfig:
+            Mode: 'PassThrough'
+        Code: 
+          RepositoryType: 'S3'
+          Location: "https://prod-04-2014-tasks.s3.amazonaws.com/snapshots/133713371337/#{name}-#{uuid.v1()}"
 
 module.exports = Processors

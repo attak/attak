@@ -112,13 +112,13 @@ SimulationUtils =
 
     app.setup ->
       services = app.getSimulationServices()
-      console.log "SERVICES", services
 
       manager = new ServiceManager
-      manager.setup services, (err, services) ->
-        console.log "ALL SETUP", err, services
-        app.setState topology, (err, results) ->
-          console.log "SET STATE RESULTS", err, results
+      manager.setup topology, {}, services, (err, services) ->
+        console.log "SETUP SERVICES", err, services
+        app.getState (err, state) ->
+          app.setState state, topology, {services}, (err, results) ->
+            console.log "SET STATE RESULTS", err, results
 
   oldThing: ->
     if opts.input
