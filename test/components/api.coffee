@@ -35,11 +35,12 @@ test 'api', (suite) ->
     suite.test 'should create a gateway and associate it with a processor', (suite) ->
       state = 'endpoint'
 
-      @component.setState state, (err, state) =>
-        @component.getState (err, state) ->
-          suite.equal err, null, err?.stack
-          suite.notEqual state, undefined, 'no state returned'
-          suite.notEqual Object.keys(state || {}).length, 0, 'failed to create processor' 
+      @component.getState (err, startState) ->
+        @component.setState startState, state, {}, (err, results) =>
+          @component.getState (err, endState) ->
+            suite.equal err, null, err?.stack
+            suite.notEqual endState, undefined, 'no state returned'
+            suite.notEqual Object.keys(endState || {}).length, 0, 'failed to create processor' 
 
           suite.end()
     suite.end()

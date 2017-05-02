@@ -84,7 +84,7 @@ test 'components', (suite) ->
             @state = {}
           callback null, @state
 
-        resolveState: (currentState, newState, differences, callback) ->
+        resolveState: (currentState, newState, differences, opts, callback) ->
           @state = newState
           callback()
 
@@ -93,7 +93,7 @@ test 'components', (suite) ->
         suite.end()
 
       suite.test 'should set state successfully', (suite) ->
-        @component.setState {working: true}, (err, results) =>
+        @component.setState {}, {working: true}, {}, (err, results) =>
           @component.getState (err, state) ->
             differences = Differ.diff state, {working: true}
             suite.equal differences?.length > 0, false, 'failed to set state'

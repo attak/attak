@@ -48,12 +48,17 @@ class BaseComponent
     createPlan = @create path, newDefs, opts
     [deletePlan..., createPlan...]
 
-  setState: (newState, callback) ->
-    @getState (err, currentState) =>
-      differences = Differ.diff currentState, newState
-      @resolveState currentState, newState, differences, (err, results) =>
-        @saveState newState, @path
-        callback err, results
+  addChild: (namespace, child) ->
+    child.parent = @
+    if @children is undefined
+      @children = {}
+    @children[namespace] = child
+
+  setState: (currentState, newState, opts, callback) ->
+    differences = Differ.diff currentState, newState
+    @resolveState currentState, newState, differences, opts, (err, results) =>
+      @saveState newState, @path
+      callback err, results
 
   saveState: (newState, path) ->
     state = @loadState()
@@ -92,32 +97,63 @@ class BaseComponent
       else
         throw new Error "Unknown diff type #{diff.kind || diff}"
 
-  resolveState: (currentState, newState, diffs, callback) ->
-    plan = @planResolution currentState, newState, diffs
+  resolveState: (currentState, newState, diffs, opts, callback) ->
+    opts.group = uuid.v1()
+
+    plan = @planResolution currentState, newState, diffs, opts
     @executePlan currentState, newState, diffs, plan, (err, results) ->
-      console.log "EXECUTE RESULTS", err, results
       callback err, results
 
-  executePlan: (currentState, newState, diffs, plan, callback) ->
-    console.log "EXECUTE PLAN", @namespace, plan
-    async.eachSeries plan, (item, next) ->
-      console.log "EXECUTE ITEM", item
-      item.run (err) ->
-        next err
+  executePlan: (currentState, newState, diffs, plan, callback) ->    
+    groups = {}
+
+    for item in plan
+      group = item.group || uuid.v1()
+      if groups[group] is undefined
+        groups[group] =
+          plan: []
+          deferred: []
+      
+      if item.defer or item.deferred
+        groups[group].deferred.push item
+      else
+        groups[group].plan.push item
+
+    async.forEachOf groups, (group, groupId, nextGroup) =>
+
+      async.eachSeries group.plan, (item, nextItem) =>        
+        item.run (err) ->
+          nextItem err
+      , (err) =>
+        if err then return nextGroup err
+
+        if group.deferred?.length > 0
+          group.deferred[0].source.executeDeferred group.deferred, (err) ->
+            nextGroup err
+        else
+          nextGroup err
     , (err) ->
       callback err
 
-  planResolution: (currentState, newState, diffs) ->
+  planResolution: (currentState, newState, diffs, opts) ->
     plan = []
     for diff in diffs
       if @children?[diff.path?[0]]
         childPath = diff.path.shift()
-        diffPlan = @children[childPath].handleDiff diff
-        plan = [plan..., diffPlan...]
+        diffPlan = @children[childPath].handleDiff diff, opts
+        for item in diffPlan
+          item.source = @children[childPath]
       else
-        diffPlan = @handleDiff diff, next
-        plan = [plan..., diffPlan...]
-    plan
+        diffPlan = @handleDiff diff, opts
+        for item in diffPlan
+          item.source = @
+        
+      for item in diffPlan
+        item.group = item.group || opts.group
+      
+      plan = [plan..., diffPlan...]
+    
+    return plan
 
   getSimulationServices: () ->
     services = {}
@@ -150,13 +186,23 @@ class BaseComponent
 
     return services
 
-  getDependencies: (path) ->
-    deps = @dependencies
-    
-    if @children?[path[0]]
-      child = path.shift()
-      deps = deps.concat @children[child].getDependencies(path)
-    
-    return deps
+  getDependencies: () ->
+    deps = @dependencies || {}
+    if deps.constructor is Array
+      depsObj = {}
+      for item in deps
+        if item.constructor is String
+          depsObj[item] = {}
+        else
+          for key, val of item
+            depsObj[key] = val
+      deps = depsObj
+
+    if @parent
+      deps[@parent.namespace] = {}
+      parentDeps = @parent.getDependencies() || {}
+      deps = extend deps, parentDeps
+
+    deps
 
 module.exports = BaseComponent
