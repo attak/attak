@@ -29,7 +29,6 @@ class ATTAK extends BaseComponent
       @addChild key, child
 
   setState: (currentState, newState, opts, callback) ->
-    console.log "SET STATE", newState
     keys = Object.keys(currentState)
     for key, val of newState
       if key not in keys
@@ -53,15 +52,14 @@ class ATTAK extends BaseComponent
         opts.dependencies[key] = newState[key]
 
       component.setState current, target, opts, next
-    , (err) ->
+    , (err) =>
       @saveState newState, @path
-      callback err, results
+      callback err
 
   handleDiff: (diff, opts) ->
     async.forEachOf diff.rhs, (val, key, next) =>
       component = @children[key]
       if component is undefined
-        console.log "WE HAVE", @children
         return next new Error "No component for namespace #{key}"
 
       component.setState val, ->
