@@ -11,17 +11,17 @@ class AWSAPI extends BaseService
 
   setup: (state, opts, callback) ->
     console.log "SETUP AWS API", opts
-    hostname = '127.0.0.1'
-    port = opts.port || 12368
-    @endpoint = "http://localhost:#{port}"
+    @host = '127.0.0.1'
+    @port = opts.port || 12368
+    @endpoint = "http://#{@host}:#{@port}"
     
     app = express()
     app.use bodyParser.json()
     app.use bodyParser.urlencoded
-      extended: false
+      extended: true
 
     app.use (req, res, next) ->
-      console.log "AWS API REQUEST", req.method, req.url
+      console.log "AWS API REQUEST", req.method, req.url, req.body
       next()
 
     app.options '*', (req, res) ->
@@ -48,7 +48,7 @@ class AWSAPI extends BaseService
     , ->
       null
 
-    app.listen port, () =>
+    app.listen @port, () =>
       callback null, @endpoint
 
 module.exports = AWSAPI

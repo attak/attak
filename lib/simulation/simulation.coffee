@@ -6,6 +6,7 @@ ngrok = require 'ngrok'
 chalk = require 'chalk'
 async = require 'async'
 ATTAK = require '../attak'
+extend = require 'extend'
 parser = require 'cron-parser'
 nodePath = require 'path'
 dynalite = require 'dynalite'
@@ -105,6 +106,15 @@ SimulationUtils =
     opts.startTime = new Date
     opts.environment = opts.environment || 'development'
 
+    if opts.input
+      input = opts.input
+    else
+      inputPath = nodePath.resolve (opts.cwd || process.cwd()), opts.inputFile
+      if fs.existsSync inputPath
+        input = require inputPath
+      else
+        input = undefined
+
     app = new ATTAK
       topology: topology
       simulation: true
@@ -119,6 +129,24 @@ SimulationUtils =
         app.getState (err, state) ->
           app.setState state, topology, {services}, (err, results) ->
             console.log "SET STATE RESULTS", err, results
+            async.forEachOf input, (data, processorName, nextProcessor) ->
+              console.log "INVOKING WITH DATA", processorName, data
+
+              lambda = new AWS.Lambda
+                region: 'us-east-1'
+                endpoint: services['AWS:API']
+
+              params = 
+                InvokeArgs: new Buffer JSON.stringify(data)
+                FunctionName: "#{processorName}-#{opts.environment || 'development'}"
+
+              lambda.invokeAsync params
+                .on 'build', (req) ->
+                  req.httpRequest.headers['Content-Type'] = 'application/json'
+                  req.httpRequest.endpoint.host = services['AWS:API'].host
+                  req.httpRequest.endpoint.port = services['AWS:API'].port
+                .send (err, data) ->
+                  console.log "INVOKE RESULTS", err, data
 
   oldThing: ->
     if opts.input
