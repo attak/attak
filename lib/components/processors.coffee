@@ -14,6 +14,8 @@ class Processors extends BaseComponent
         handlers:
           "POST /:apiVerison/functions/:functionName/invoke-async": @handleInvoke
           "GET /:apiVerison/functions/:functionName": @handleGetFunction
+          "POST /:apiVerison/functions": @handleCreateFunction
+          "PUT /:apiVerison/functions": @handleCreateFunction
 
   fetchState: (callback) ->
     state = {}
@@ -104,8 +106,23 @@ class Processors extends BaseComponent
       catch e
         res.end response
 
+  handleCreateFunction: (state, opts, req, res) ->
+    console.log "HANDLING CREATE FUNCTION", opts, req.method, req.url, req.params
+
+    name = req.params.functionName
+    req.on 'data', -> null
+    req.on 'end', ->
+      res.json
+        FunctionName: name
+        FunctionArn: "arn:aws:lambda:us-east-1:133713371337:function:#{name}"
+        Runtime: 'nodejs4.3'
+        Role: 'arn:aws:iam::133713371337:role/lambda'
+        CodeSize: 8469826
+        Version: '$LATEST'
+        TracingConfig: Mode: 'PassThrough'
+
   handleGetFunction: (state, opts, req, res) ->
-    console.log "HANDLING REQUEST", opts, req.method, req.url, req.params
+    console.log "HANDLING GET FUNCTION", opts, req.method, req.url, req.params, state.processors
     name = req.params.functionName
 
     if state.processors?[name] is undefined
