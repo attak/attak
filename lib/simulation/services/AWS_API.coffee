@@ -20,10 +20,6 @@ class AWSAPI extends BaseService
     app.use bodyParser.urlencoded
       extended: true
 
-    app.use (req, res, next) ->
-      console.log "AWS API REQUEST", req.method, req.url, req.body
-      next()
-
     app.options '*', (req, res) ->
       headers =
         'Access-Control-Max-Age': '86400'
@@ -46,7 +42,9 @@ class AWSAPI extends BaseService
           handler state, opts, req, res, next
       next()
     , ->
-      null
+      app.use (req, res, next) ->
+        console.log "AWS API REQUEST", req.method, req.url, req.body
+        next()
 
     app.listen @port, () =>
       callback null, @endpoint

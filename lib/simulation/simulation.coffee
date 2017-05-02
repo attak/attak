@@ -142,7 +142,6 @@ SimulationUtils =
 
               lambda.invokeAsync params
                 .on 'build', (req) ->
-                  req.httpRequest.headers['Content-Type'] = 'application/json'
                   req.httpRequest.endpoint.host = services['AWS:API'].host
                   req.httpRequest.endpoint.port = services['AWS:API'].port
                 .send (err, data) ->

@@ -1,5 +1,6 @@
 AWS = require 'aws-sdk'
 async = require 'async'
+AWSUtils = require '../aws'
 AttakProc = require 'attak-processor'
 LambdaUtils = require '../lambda'
 BaseComponent = require './base_component'
@@ -18,6 +19,9 @@ class Processors extends BaseComponent
           "GET /:apiVerison/functions/:functionName": @handleGetFunction
           "POST /:apiVerison/functions": @handleCreateFunction
           "PUT /:apiVerison/functions": @handleCreateFunction
+      'AWS:Kinesis':
+        handlers:
+          "POST /": @handleKinesisPut
 
   fetchState: (callback) ->
     state = {}
@@ -78,13 +82,19 @@ class Processors extends BaseComponent
     delete @state[path[0]]
     callback null
 
-  handleInvoke: (state, opts, req, res) ->
+  handleInvoke: (state, opts, req, res) =>
     environment = opts.environment || 'development'
 
     splitPath = req.url.split '/'
     fullName = splitPath[3]
     processorName = fullName.split("-#{environment}")[0]
+    @invokeProcessor processorName, req.body, state, opts, (err, results) ->
+      if err
+        res.status(500).send err
+      else
+        res.send results.body
 
+  invokeProcessor: (processorName, data, state, opts, callback) ->
     context =
       done: -> callback()
       fail: (err) -> callback err
@@ -94,11 +104,8 @@ class Processors extends BaseComponent
 
     processor = TopologyUtils.getProcessor opts, state, processorName
     handler = AttakProc.handler processorName, state, processor, opts
-    handler req.body, context, (err, results) ->
-      if err
-        res.status(500).send err
-      else
-        res.send results.body
+    handler data, context, (err, results) ->
+      callback err, results
 
   handleCreateFunction: (state, opts, req, res) ->
     console.log "HANDLING CREATE FUNCTION", opts, req.method, req.url, req.params
@@ -146,5 +153,20 @@ class Processors extends BaseComponent
         Code: 
           RepositoryType: 'S3'
           Location: "https://prod-04-2014-tasks.s3.amazonaws.com/snapshots/133713371337/#{name}-#{uuid.v1()}"
+
+  getTargetProcessor: (state, targetStream) ->
+    for stream in state.streams
+      streamName = AWSUtils.getStreamName state.name, stream.from, stream.to
+      console.log "STREAM NAME", streamName, "LOOKING FOR", targetStream
+      if streamName is targetStream
+        return stream.to
+
+  handleKinesisPut: (state, opts, req, res) =>
+    console.log "HANDLE KINESIS PUT", req.body.StreamName
+    
+    processorName = @getTargetProcessor state, req.body.StreamName
+    data = JSON.parse new Buffer(req.body.Data, 'base64').toString()
+    @invokeProcessor processorName, data.data, state, opts, (err, results) ->
+      res.json {ok: true}
 
 module.exports = Processors

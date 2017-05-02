@@ -1,3 +1,4 @@
+async = require 'async'
 express = require 'express'
 bodyParser = require 'body-parser'
 BaseService = require '../base_service'
@@ -9,14 +10,16 @@ class Streams extends BaseService
     'GCE:PubSub'
   ]
 
-  setup: (topology, opts, callback) ->
-    hostname = '127.0.0.1'
-    port = opts.port || 6668
+  setup: (state, opts, callback) ->
+    @host = '127.0.0.1'
+    @port = opts.port || 6668
+    @endpoint = "http://#{@host}:#{@port}"
     
     app = express()
-    app.use bodyParser.json()
+    app.use bodyParser.json
+      type: '*/*'
     app.use bodyParser.urlencoded
-      extended: false
+      extended: true
 
     app.options '*', (req, res) ->
       headers =
@@ -30,16 +33,21 @@ class Streams extends BaseService
       res.writeHead 200, headers
       res.end()
 
-    for [route, handler] in (opts.handlers || [])
+    async.forEachOf opts.handlers || {}, (handler, route, next) ->
       [methods, fullPath] = route.split ' '
       methods = methods.split ','
 
       for method in methods
+        console.log "HANDLER", method, fullPath
         app[method.toLowerCase()] fullPath, (req, res, next) ->
-          handler topology, opts, req, res, next
+          handler state, opts, req, res, next
+      next()
+    , ->
+      app.use (req, res, next) ->
+        console.log "AWS Kinesis REQUEST", req.method, req.url, req.body
+        next()
 
-    app.listen port, () ->
-      console.log "STREAMS LISTENING"
-      callback null, "http://localhost:#{port}"
+    app.listen @port, () =>
+      callback null, @endpoint
 
 module.exports = Streams
