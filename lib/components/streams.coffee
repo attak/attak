@@ -1,15 +1,18 @@
 AWS = require 'aws-sdk'
 async = require 'async'
+AWSUtils = require '../aws'
+AttakProc = require 'attak-processor'
+TopologyUtils = require '../topology'
 BaseComponent = require './base_component'
 
 class Streams extends BaseComponent
   namespace: 'streams'
   platforms: ['AWS']
   simulation:
-    services:
+    services: ->
       'AWS:Kinesis':
         handlers:
-          "POST /": @simulateStreamPutItem
+          "POST /": @handleKinesisPut
 
   create: (path, newDefs, callback) ->
     [
@@ -31,19 +34,32 @@ class Streams extends BaseComponent
       }
     ]
 
-  simulateStreamPutItem: (topology, opts, req, res) ->
-    console.log "PUT ITEM", req.body, opts
+  invokeProcessor: (processorName, data, state, opts, callback) ->
+    context =
+      done: -> callback()
+      fail: (err) -> callback err
+      success: (results) -> callback null, results
+      state: state
+      services: opts.services
 
-    lambda = new AWS.Lambda
-      region: opts.region || 'us-east-1'
-      endpoint: opts.endpoints['AWS:Kinesis']
+    processor = TopologyUtils.getProcessor opts, state, processorName
+    handler = AttakProc.handler processorName, state, processor, opts
+    handler data, context, (err, results) ->
+      callback err, results
 
-    params =
-      Payload: new Buffer JSON.stringify(data)
-      FunctionName: "#{processor}-#{program.environment}"
-      InvocationType: 'Event'
+  getTargetProcessor: (state, targetStream) ->
+    for stream in state.streams
+      streamName = AWSUtils.getStreamName state.name, stream.from, stream.to
+      console.log "STREAM NAME", streamName, "LOOKING FOR", targetStream
+      if streamName is targetStream
+        return stream.to
 
-    lambda.invoke params, (err, results) ->
-      res.json ok: true
+  handleKinesisPut: (state, opts, req, res) =>
+    console.log "HANDLE KINESIS PUT", req.body.StreamName
+    
+    processorName = @getTargetProcessor state, req.body.StreamName
+    data = JSON.parse new Buffer(req.body.Data, 'base64').toString()
+    @invokeProcessor processorName, data.data, state, opts, (err, results) ->
+      res.json {ok: true}
 
 module.exports = Streams

@@ -19,9 +19,6 @@ class Processors extends BaseComponent
           "GET /:apiVerison/functions/:functionName": @handleGetFunction
           "POST /:apiVerison/functions": @handleCreateFunction
           "PUT /:apiVerison/functions": @handleCreateFunction
-      'AWS:Kinesis':
-        handlers:
-          "POST /": @handleKinesisPut
 
   fetchState: (callback) ->
     state = {}
@@ -153,20 +150,5 @@ class Processors extends BaseComponent
         Code: 
           RepositoryType: 'S3'
           Location: "https://prod-04-2014-tasks.s3.amazonaws.com/snapshots/133713371337/#{name}-#{uuid.v1()}"
-
-  getTargetProcessor: (state, targetStream) ->
-    for stream in state.streams
-      streamName = AWSUtils.getStreamName state.name, stream.from, stream.to
-      console.log "STREAM NAME", streamName, "LOOKING FOR", targetStream
-      if streamName is targetStream
-        return stream.to
-
-  handleKinesisPut: (state, opts, req, res) =>
-    console.log "HANDLE KINESIS PUT", req.body.StreamName
-    
-    processorName = @getTargetProcessor state, req.body.StreamName
-    data = JSON.parse new Buffer(req.body.Data, 'base64').toString()
-    @invokeProcessor processorName, data.data, state, opts, (err, results) ->
-      res.json {ok: true}
 
 module.exports = Processors
