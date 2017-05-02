@@ -82,12 +82,12 @@ LambdaUtils =
           FunctionName: functionName
           Code: ZipFile: buffer
           Handler: 'attak_runner.handler'
-          Role: opts.role
-          Runtime: opts.runtime
+          Role: opts.role || process.env.AWS_ROLE_ARN || process.env.AWS_ROLE
+          Runtime: opts.runtime || process.env.AWS_RUNTIME || 'nodejs4.3'
           Description: opts.description
-          MemorySize: opts.memorySize
-          Timeout: opts.timeout
-          Publish: opts.publish
+          MemorySize: opts.memorySize || process.env.AWS_MEMORY_SIZE || 128
+          Timeout: opts.timeout || process.env.AWS_TIMEOUT || 60
+          Publish: opts.publish || process.env.AWS_PUBLISH || false
           VpcConfig: {}
           Environment:
             Variables:
@@ -121,10 +121,11 @@ LambdaUtils =
           console.log "USING ENDPOINT", opts.services['AWS:API']
           
           awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
-            console.log "GET FunCTION RESULTS", err, results
+            console.log "GET FUNCTION RESULTS", err, results
             if err
               log "Creating new function", params.FunctionName, params
               awsLambda.createFunction params, (err, results) ->
+                console.log "CREATE FUNCTION RESULTS", err, results
                 retval[params.FunctionName] = results
                 nextRegion err
             else
