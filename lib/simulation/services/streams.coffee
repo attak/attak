@@ -1,3 +1,5 @@
+express = require 'express'
+bodyParser = require 'body-parser'
 BaseService = require '../base_service'
 
 class Streams extends BaseService
@@ -37,6 +39,7 @@ class Streams extends BaseService
           handler topology, opts, req, res, next
 
     app.listen port, () ->
+      console.log "STREAMS LISTENING"
       callback null, "http://localhost:#{port}"
 
 module.exports = Streams

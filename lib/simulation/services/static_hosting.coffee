@@ -11,6 +11,7 @@ class StaticHosting extends BaseService
     workingDir = opts.cwd || process.cwd()
     hostname = '127.0.0.1'
     port = opts.port || 12342
+    @endpoint = "http://localhost:#{port}"
 
     if topology.static.constructor is String
       staticDir = nodePath.resolve workingDir, topology.static
@@ -25,8 +26,8 @@ class StaticHosting extends BaseService
       .resume()
     
     server.listen port, hostname, ->
-      opts.report?.info "Static files hosted at: http://localhost:#{port}/[file path]"
+      opts.report?.info "Static files hosted at: #{@endpoint}/[file path]"
         # console.log "Externally visible url: #{url}/[file [path]"
-      callback null, "http://localhost:#{port}"
+      callback null, @endpoint
 
 module.exports = StaticHosting

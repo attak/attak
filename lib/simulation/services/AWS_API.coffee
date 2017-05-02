@@ -8,14 +8,20 @@ class AWSAPI extends BaseService
     'AWS:API'
   ]
 
-  setup: (topology, opts, callback) ->
+  setup: (state, opts, callback) ->
+    console.log "SETUP AWS API", opts
     hostname = '127.0.0.1'
     port = opts.port || 12368
+    @endpoint = "http://localhost:#{port}"
     
     app = express()
     app.use bodyParser.json()
     app.use bodyParser.urlencoded
       extended: false
+
+    app.use (req, res, next) ->
+      console.log "AWS API REQUEST", req.method, req.url
+      next()
 
     app.options '*', (req, res) ->
       headers =
@@ -29,15 +35,15 @@ class AWSAPI extends BaseService
       res.writeHead 200, headers
       res.end()
 
-    for [route, handler] in (opts.handlers || [])
+    for route, handler of (opts.handlers || {})
       [methods, fullPath] = route.split ' '
       methods = methods.split ','
 
       for method in methods
         app[method.toLowerCase()] fullPath, (req, res, next) ->
-          handler topology, opts, req, res, next
+          handler state, opts, req, res, next
 
-    app.listen port, () ->
-      callback null, "http://localhost:#{port}"
+    app.listen port, () =>
+      callback null, @endpoint
 
 module.exports = AWSAPI
