@@ -121,11 +121,9 @@ LambdaUtils =
           console.log "USING ENDPOINT", opts.services['AWS:API']
           
           awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
-            console.log "GET FUNCTION RESULTS", err, results
             if err
               log "Creating new function", params.FunctionName, params
               awsLambda.createFunction params, (err, results) ->
-                console.log "CREATE FUNCTION RESULTS", err, results
                 retval[params.FunctionName] = results
                 nextRegion err
             else
@@ -189,6 +187,9 @@ LambdaUtils =
         callback null, data
 
   buildAndArchive: (program, callback) ->
+    if program.simulation
+      return callback()
+
     # Warn if not building on 64-bit linux
     arch = process.platform + '.' + process.arch
     if arch != 'linux.x64'
