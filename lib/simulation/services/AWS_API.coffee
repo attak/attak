@@ -15,9 +15,10 @@ class AWSAPI extends BaseService
     @endpoint = "http://#{@host}:#{@port}"
     
     @app = express()
-    @app.use bodyParser.json()
+    @app.use bodyParser.json
+      type: '*/*'
     @app.use bodyParser.urlencoded
-      extended: true
+      extended: false
 
     @app.options '*', (req, res) ->
       headers =
@@ -36,7 +37,6 @@ class AWSAPI extends BaseService
       methods = methods.split ','
 
       for method in methods
-        console.log "HANDLER", method, fullPath
         @app[method.toLowerCase()] fullPath, (req, res, next) ->
           handler state, opts, req, res, next
       next()
