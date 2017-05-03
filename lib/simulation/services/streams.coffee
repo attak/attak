@@ -42,12 +42,14 @@ class Streams extends BaseService
         app[method.toLowerCase()] fullPath, (req, res, next) ->
           handler state, opts, req, res, next
       next()
-    , ->
-      app.use (req, res, next) ->
+    , =>
+      app.use (req, res, next) =>
         console.log "AWS Kinesis REQUEST", req.method, req.url, req.body
-        next()
+      @server = app.listen @port, () =>
+        callback null, @endpoint
 
-    app.listen @port, () =>
-      callback null, @endpoint
+  stop: (callback) ->
+    @server?.close()
+    callback()
 
 module.exports = Streams

@@ -60,14 +60,32 @@ class BaseComponent
       @saveState newState, @path
       callback err, results
 
+  clearState: (path=[]) ->
+    state = @loadState()
+    target = state
+    if path.length > 0
+      for pathItem, index in path
+        if index is path.length - 1
+          target[pathItem] = {}
+        else
+          target = target[pathItem]
+    else
+      state = {}
+
+    stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
+    fs.writeFileSync stateFilePath, JSON.stringify(state, null, 2)
+
   saveState: (newState, path) ->
     state = @loadState()
     target = state
-    for pathItem, index in path
-      if index is path.length - 1
-        target[pathItem] = newState
-      else
-        target = target[pathItem]
+    if path.length > 0
+      for pathItem, index in path
+        if index is path.length - 1
+          target[pathItem] = newState
+        else
+          target = target[pathItem]
+    else
+      state = newState
 
     stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
     fs.writeFileSync stateFilePath, JSON.stringify(state, null, 2)

@@ -56,10 +56,21 @@ class Streams extends BaseComponent
 
   handleKinesisPut: (state, opts, req, res) =>
     console.log "HANDLE KINESIS PUT", req.body.StreamName
-    
-    processorName = @getTargetProcessor state, req.body.StreamName
-    data = JSON.parse new Buffer(req.body.Data, 'base64').toString()
-    @invokeProcessor processorName, data.data, state, opts, (err, results) ->
-      res.json {ok: true}
+
+    streamExists = false
+    for stream in (state.streams || [])
+      if AWSUtils.getStreamName(state.name, stream.from, stream.to) is req.body.StreamName
+        streamExists = true
+
+    if streamExists
+      processorName = @getTargetProcessor state, req.body.StreamName
+      data = JSON.parse new Buffer(req.body.Data, 'base64').toString()
+      @invokeProcessor processorName, data.data, state, opts, (err, results) ->
+        res.json {ok: true}
+    else
+      res.status 400
+      res.header 'x-amzn-errortype', 'ResourceNotFoundException'
+      res.json
+        message: "Stream not found: #{req.body.StreamName}"
 
 module.exports = Streams

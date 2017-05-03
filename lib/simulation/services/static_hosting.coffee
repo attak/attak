@@ -20,14 +20,18 @@ class StaticHosting extends BaseService
 
     file = new staticHost.Server staticDir
 
-    server = http.createServer (req, res) ->
+    @server = http.createServer (req, res) ->
       req.addListener 'end', ->
         file.serve req, res
       .resume()
     
-    server.listen port, hostname, ->
+    @server.listen port, hostname, ->
       opts.report?.info "Static files hosted at: #{@endpoint}/[file path]"
         # console.log "Externally visible url: #{url}/[file [path]"
       callback null, @endpoint
+
+  stop: (callback) ->
+    @server?.close()
+    callback()
 
 module.exports = StaticHosting

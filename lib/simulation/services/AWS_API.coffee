@@ -15,12 +15,12 @@ class AWSAPI extends BaseService
     @port = opts.port || 12368
     @endpoint = "http://#{@host}:#{@port}"
     
-    app = express()
-    app.use bodyParser.json()
-    app.use bodyParser.urlencoded
+    @app = express()
+    @app.use bodyParser.json()
+    @app.use bodyParser.urlencoded
       extended: true
 
-    app.options '*', (req, res) ->
+    @app.options '*', (req, res) ->
       headers =
         'Access-Control-Max-Age': '86400'
         'Access-Control-Allow-Origin': '*'
@@ -32,21 +32,25 @@ class AWSAPI extends BaseService
       res.writeHead 200, headers
       res.end()
 
-    async.forEachOf opts.handlers || {}, (handler, route, next) ->
+    async.forEachOf opts.handlers || {}, (handler, route, next) =>
       [methods, fullPath] = route.split ' '
       methods = methods.split ','
 
       for method in methods
         console.log "HANDLER", method, fullPath
-        app[method.toLowerCase()] fullPath, (req, res, next) ->
+        @app[method.toLowerCase()] fullPath, (req, res, next) ->
           handler state, opts, req, res, next
       next()
-    , ->
-      app.use (req, res, next) ->
+    , =>
+      @app.use (req, res, next) ->
         console.log "AWS API REQUEST", req.method, req.url, req.body
         next()
 
-    app.listen @port, () =>
+    @server = @app.listen @port, () =>
       callback null, @endpoint
+
+  stop: (callback) ->
+    @server.close()
+    callback()
 
 module.exports = AWSAPI

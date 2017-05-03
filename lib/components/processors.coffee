@@ -1,5 +1,6 @@
 AWS = require 'aws-sdk'
 async = require 'async'
+extend = require 'extend'
 AWSUtils = require '../aws'
 AttakProc = require 'attak-processor'
 LambdaUtils = require '../lambda'
@@ -57,9 +58,8 @@ class Processors extends BaseComponent
     , (err, numPages) ->
       callback err, functions
 
-  # create: (path, newDefs, opts) ->
   resolveState: (currentState, newState, diffs, opts, callback) ->
-    opts =
+    opts = extend opts,
       name: opts.dependencies.name
       services: opts.services
       simulation: true

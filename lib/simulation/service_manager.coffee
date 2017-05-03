@@ -7,14 +7,14 @@ StaticHosting = require './services/static_hosting'
 class ServiceManager
 
   setup: (state, opts, configs, callback) ->
-    services = [
+    @services = [
       new AWSAPI
       new Streams
       new StaticHosting
     ]
 
     @handlers = {}
-    for service in services
+    for service in @services
       for path in service.paths
         @handlers[path] = service
 
@@ -43,5 +43,12 @@ class ServiceManager
         next err
     , (err) =>
       callback err, @handlers
+
+  stopAll: (callback) ->
+    async.each @services, (service, next) ->
+      service.stop ->
+        next()
+    , (err) ->
+      callback err
 
 module.exports = ServiceManager
