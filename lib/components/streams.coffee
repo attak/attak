@@ -54,7 +54,7 @@ class Streams extends BaseComponent
       callback err, results
 
   getTargetProcessor: (state, targetStream) ->
-    for stream in state.streams
+    for streamName, stream of (state.streams || {})
       streamName = AWSUtils.getStreamName state.name, stream.from, stream.to
       console.log "STREAM NAME", streamName, "LOOKING FOR", targetStream
       if streamName is targetStream
@@ -64,7 +64,7 @@ class Streams extends BaseComponent
     console.log "HANDLE KINESIS PUT", req.body.StreamName
 
     streamExists = false
-    for stream in (state.streams || [])
+    for streamName, stream of (state.streams || {})
       if AWSUtils.getStreamName(state.name, stream.from, stream.to) is req.body.StreamName
         streamExists = true
 

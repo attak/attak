@@ -866,9 +866,8 @@ AWSUtils =
       callback err, results
 
   deployStreams: (topology, program, lambdas, callback) ->
-    async.forEachSeries topology.streams, (stream, next) ->
-      streamName = AWSUtils.getStreamName topology.name, stream.from, stream.to
-      AWSUtils.createStream program, topology.name, streamName, stream.opts, (err, results) ->
+    async.forEachOfSeries topology.streams, (stream, streamName, next) ->
+      AWSUtils.createStream program, topology.name, streamName, (err, results) ->
         AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->          
           lambdaData = lambdas["#{stream.to}-#{program.environment}"]
           AWSUtils.associateStream program, streamResults.StreamDescription, lambdaData, (err, results) ->
@@ -878,9 +877,8 @@ AWSUtils =
 
   deploySimulationStreams: (program, topology, callback) ->
     names = []
-    async.forEachSeries topology.streams, (stream, next) ->
-      streamName = AWSUtils.getStreamName topology.name, stream.from, stream.to
-      AWSUtils.createStream program, topology.name, streamName, stream.opts, (err, results) ->
+    async.forEachOfSeries topology.streams, (stream, streamName, next) ->
+      AWSUtils.createStream program, topology.name, streamName, (err, results) ->
         AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->
           names.push streamName
           next()
@@ -984,14 +982,14 @@ AWSUtils =
 
   getNext: (topology, topic, current) ->
     next = []
-    for stream in (topology.streams || [])
+    for streamName, stream of (topology.streams || {})
       if stream.from is current and (stream.topic || topic) is topic
         next.push stream.to
     next
 
   nextByTopic: (topology, current) ->
     next = {}
-    for stream in (topology.streams || [])
+    for streamName, stream of (topology.streams || {})
       if stream.from is current
         next[stream.topic || 'all'] = stream.to
     next

@@ -474,7 +474,7 @@ SimulationUtils =
         if allResults[procName].emits[topic].length > 1000
           allResults[procName].emits[topic].shift()
 
-        for stream in topology.streams
+        for streamName, stream of (topology.streams || {})
           if stream.from is procName and (stream.topic || topic) is topic
             eventQueue.push
               processor: stream.to

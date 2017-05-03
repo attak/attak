@@ -12,18 +12,20 @@ TopologyUtils =
     else
       topology = require workingDir
 
-    if topology.name is undefined
-      throw new Error "Error loading topology: missing name"
-
     if topology.streams?.constructor is Function
       topology.streams = topology.streams()
     
-    for stream, index in (topology.streams || [])
-      if stream.constructor is Array
-        topology.streams[index] =
-          from: stream[0]
-          to: stream[1]
-          topic: stream[2]
+    if topology.streams?.constructor is Array
+      streamsObj = {}
+      for streamName, stream of (topology.streams || {})
+        if stream.constructor is Array
+          stream =
+            from: stream[0]
+            to: stream[1]
+            topic: stream[2]
+        streamName = "#{topology.name}-#{stream.from}-#{stream.to}"
+        streamsObj[streamName] = stream
+      topology.streams = streamsObj
 
     if topology.processors?.constructor is Function
       topology.processors = topology.processors()
@@ -47,7 +49,7 @@ TopologyUtils =
     # topology to find the full list of processors used.
     else if topology.processors is undefined and topology.processor?.constructor is Function
       processors = {}
-      for stream in topology.streams
+      for streamName, stream of topology.streams
         if processors[stream.to] is undefined
           processors[stream.to] = stream.to
         if processors[stream.from] is undefined
