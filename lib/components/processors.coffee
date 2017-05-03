@@ -97,7 +97,6 @@ class Processors extends BaseComponent
       fail: (err) -> callback err
       success: (results) -> callback null, results
       state: state
-      services: opts.services
 
     processor = TopologyUtils.getProcessor opts, state, processorName
     handler = AttakProc.handler processorName, state, processor, opts
@@ -105,8 +104,6 @@ class Processors extends BaseComponent
       callback err, results
 
   handleCreateFunction: (state, opts, req, res) ->
-    console.log "HANDLING CREATE FUNCTION", opts, req.method, req.url, req.params
-
     name = req.params.functionName
     req.on 'data', -> null
     req.on 'end', ->
@@ -120,7 +117,6 @@ class Processors extends BaseComponent
         TracingConfig: Mode: 'PassThrough'
 
   handleGetFunction: (state, opts, req, res) ->
-    console.log "HANDLING GET FUNCTION", opts, req.method, req.url, req.params, state.processors
     name = req.params.functionName
 
     if state.processors?[name] is undefined

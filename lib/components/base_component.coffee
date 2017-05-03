@@ -153,7 +153,7 @@ class BaseComponent
     , (err) ->
       callback err
 
-  planResolution: (currentState, newState, diffs, opts) ->
+  planResolution: (currentState, newState, diffs=[], opts) ->
     plan = []
     for diff in diffs
       if @children?[diff.path?[0]]

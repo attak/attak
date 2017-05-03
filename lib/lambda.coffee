@@ -117,8 +117,6 @@ LambdaUtils =
           awsLambda = new AWS.Lambda
             apiVersion: '2015-03-31'
             endpoint: opts.services['AWS:API'].endpoint
-
-          console.log "USING ENDPOINT", opts.services['AWS:API']
           
           awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
             if err

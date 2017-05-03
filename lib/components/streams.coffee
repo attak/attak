@@ -40,7 +40,6 @@ class Streams extends BaseComponent
       fail: (err) -> callback err
       success: (results) -> callback null, results
       state: state
-      services: opts.services
 
     processor = TopologyUtils.getProcessor opts, state, processorName
     handler = AttakProc.handler processorName, state, processor, opts

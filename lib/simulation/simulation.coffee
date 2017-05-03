@@ -125,13 +125,9 @@ SimulationUtils =
 
       manager = new ServiceManager
       manager.setup topology, {}, services, (err, services) ->
-        console.log "SETUP SERVICES", err, services
         app.getState (err, state) ->
           app.setState state, topology, {services}, (err, results) ->
-            console.log "SET STATE RESULTS", err, results
             async.forEachOf input, (data, processorName, nextProcessor) ->
-              console.log "INVOKING WITH DATA", processorName, data
-
               lambda = new AWS.Lambda
                 region: 'us-east-1'
                 endpoint: services['AWS:API']
@@ -146,6 +142,7 @@ SimulationUtils =
                   req.httpRequest.endpoint.port = services['AWS:API'].port
                 .send (err, data) ->
                   console.log "INVOKE RESULTS", err, data
+                  callback err
 
   oldThing: ->
     if opts.input
