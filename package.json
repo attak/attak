@@ -11,7 +11,7 @@
     "attak": "./bin/attak.js"
   },
   "scripts": {
-    "test": "coffee test/main.coffee | ./node_modules/faucet/bin/cmd.js"
+    "test": "coffee test/main.coffee | tap-dot"
   },
   "author": "Mike Vegeto - michael.vegeto@gmail.com - github.com/ZECTBynmo",
   "license": "MIT",
