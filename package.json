@@ -11,7 +11,7 @@
     "attak": "./bin/attak.js"
   },
   "scripts": {
-    "test": "coffee test/main.coffee | node_modules/.bin/tap-dot"
+    "test": "coffee test/main.coffee"
   },
   "author": "Mike Vegeto - michael.vegeto@gmail.com - github.com/ZECTBynmo",
   "license": "MIT",
@@ -37,6 +37,7 @@
     "kinesis": "^1.2.2",
     "klaw": "^1.3.1",
     "level": "^1.6.0",
+    "moment": "^2.18.1",
     "ngrok": "^2.2.6",
     "node-lambda": "git+https://git@github.com/attak/node-lambda.git",
     "node-static": "^0.7.9",
