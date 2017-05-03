@@ -10,8 +10,7 @@ test = tapes tape
 
 test 'components', (suite) ->
 
-  suite.test 'base component', (suite) ->
-    
+  suite.test 'base component', (suite) ->    
     suite.test 'simulation services', (suite) ->
 
       class ChildComponent extends BaseComponent
@@ -54,7 +53,6 @@ test 'components', (suite) ->
 
         suite.end()
       suite.end()
-    suite.end()
 
 
     suite.test 'required impl errors', (suite) ->
@@ -100,12 +98,13 @@ test 'components', (suite) ->
 
             suite.end()
       suite.end()
+    suite.end()
 
   suite.test 'generic tests', (suite) ->
-    files = fs.readdirSync __dirname
+    files = fs.readdirSync nodePath.resolve(__dirname, "../../lib/components")
 
     for file in files
-      if file is 'component.coffee' then continue
+      if file is 'base_component.coffee' then continue
       fullPath = nodePath.resolve(__dirname, "../../lib/components/#{file}")
       Component = require fullPath
       component = new Component
