@@ -21,6 +21,10 @@ class Processors extends BaseComponent
           "POST /:apiVerison/functions": @handleCreateFunction
           "PUT /:apiVerison/functions": @handleCreateFunction
 
+  structure:
+    ':processorName':
+      name: 'name'
+
   fetchState: (callback) ->
     state = {}
 

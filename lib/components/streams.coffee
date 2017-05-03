@@ -8,6 +8,13 @@ BaseComponent = require './base_component'
 class Streams extends BaseComponent
   namespace: 'streams'
   platforms: ['AWS']
+
+  structure:
+    ':streamName':
+      to: 'processors/:processorName'
+      from: 'processors/:processorName'
+      topic: 'string'
+
   simulation:
     services: ->
       'AWS:Kinesis':
