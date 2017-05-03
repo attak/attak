@@ -24,7 +24,7 @@ class ATTAK extends BaseComponent
 
     @children = {}
     for key, Component of allComponents
-      child = new Component
+      child = new Component extend @options,
         path: [key]
       @addChild key, child
 

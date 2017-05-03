@@ -8,7 +8,7 @@ class API extends BaseComponent
   simulation:
     services: [
       'AWS:Lambda'
-      'AWS:Gateway'
+      'AWS:APIGateway'
     ]
 
   create: (path, newDefs, callback) ->

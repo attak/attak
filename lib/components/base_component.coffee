@@ -5,8 +5,8 @@ extend = require 'extend'
 Differ = require 'deep-diff'
 nodePath = require 'path'
 
-STATE_FILE_PATH = '../../state.json'
-SIMULATION_STATE_FILE_PATH = '../../simulation_state.json'
+STATE_FILE_PATH = './state.json'
+SIMULATION_STATE_FILE_PATH = './simulation_state.json'
 
 class BaseComponent
   lifecycle:
@@ -18,7 +18,6 @@ class BaseComponent
     @path = @options.path || []
     @state = {}
     @children = @options.children || {}
-    @namespace = 'base'
     @listeners = {}
     @dependencies = @options.dependencies || []
 
@@ -88,7 +87,12 @@ class BaseComponent
       state = newState
 
     stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
-    fs.writeFileSync stateFilePath, JSON.stringify(state, null, 2)
+    
+    cwd = @options.cwd || process.cwd()
+
+    resolved = nodePath.resolve cwd, stateFilePath
+    console.log "SAVING STATE TO", resolved, state, @namespace
+    fs.writeFileSync resolved, JSON.stringify(state, null, 2)
 
   loadState: (path=[]) ->
     stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH

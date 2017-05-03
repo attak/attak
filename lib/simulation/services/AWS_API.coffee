@@ -10,7 +10,6 @@ class AWSAPI extends BaseService
   ]
 
   setup: (state, opts, callback) ->
-    console.log "SETUP AWS API", opts
     @host = '127.0.0.1'
     @port = opts.port || 12368
     @endpoint = "http://#{@host}:#{@port}"

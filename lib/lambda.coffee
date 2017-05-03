@@ -120,7 +120,7 @@ LambdaUtils =
           
           awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
             if err
-              log "Creating new function", params.FunctionName, params
+              log "Creating new function", params.FunctionName
               awsLambda.createFunction params, (err, results) ->
                 retval[params.FunctionName] = results
                 nextRegion err
