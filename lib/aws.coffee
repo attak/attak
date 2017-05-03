@@ -843,26 +843,29 @@ AWSUtils =
   getStreamName: (topologyName, sourceProcessor, destProcessor) ->
     "#{topologyName}-#{sourceProcessor}-#{destProcessor}"
 
-  createStream: (program, topology, stream, [opts]..., callback) ->
+  createStream: (opts, topology, stream, callback) ->
     streamOpts =
       ShardCount: opts?.shards || 1
       StreamName: stream
 
     kinesis = new AWS.Kinesis
-      region: program.region || 'us-east-1'
-      endpoint: program.endpoints?.kinesis
+      region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:Kinesis'].endpoint
 
+    console.log "ABOUT TO CREATE STREAM", streamOpts
     kinesis.createStream streamOpts, (err, results) ->
       callback err, results
 
-  describeStream: (program, topology, stream, callback) ->
-    opts =
+  describeStream: (opts, topology, stream, callback) ->
+    params =
       StreamName: stream
 
+    console.log "DESCRIBE STREAM OPTS", opts
+
     kinesis = new AWS.Kinesis
-      region: program.region || 'us-east-1'
-      endpoint: program.endpoints?.kinesis
-    kinesis.describeStream opts, (err, results) ->
+      region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:Kinesis'].endpoint
+    kinesis.describeStream params, (err, results) ->
       callback err, results
 
   deployStreams: (topology, program, lambdas, callback) ->
