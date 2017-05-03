@@ -11,7 +11,7 @@
     "attak": "./bin/attak.js"
   },
   "scripts": {
-    "test": "coffee test/main.coffee | tap-dot"
+    "test": "coffee test/main.coffee | node_modules/.bin/tap-dot"
   },
   "author": "Mike Vegeto - michael.vegeto@gmail.com - github.com/ZECTBynmo",
   "license": "MIT",
@@ -48,6 +48,7 @@
     "s3-sync-aws": "git+https://git@github.com/attak/s3-sync-aws.git",
     "simple-peer": "^6.2.2",
     "socket.io-client": "^1.7.2",
+    "tap-dot": "^1.0.5",
     "tape": "^4.6.3",
     "tapes": "^4.1.0",
     "through2": "^2.0.3",
