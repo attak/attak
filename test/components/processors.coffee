@@ -13,7 +13,6 @@ test = tapes tape
 dotenv.load()
 
 setupTest = (oldState, newState, component, callback) ->
-  console.log "ASFASDFASDFASDF"
   services = component.getSimulationServices()
 
   manager = new ServiceManager

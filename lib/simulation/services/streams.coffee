@@ -19,7 +19,7 @@ class Streams extends BaseService
     app.use bodyParser.json
       type: '*/*'
     app.use bodyParser.urlencoded
-      extended: true
+      extended: false
 
     app.options '*', (req, res) ->
       headers =
@@ -44,7 +44,7 @@ class Streams extends BaseService
       next()
     , =>
       app.use (req, res, next) =>
-        console.log "AWS Kinesis REQUEST", req.method, req.url, req.body
+        console.log "UNHANDLED STREAMS REQUEST", req.method, req.url, req.body
       @server = app.listen @port, () =>
         callback null, @endpoint
 

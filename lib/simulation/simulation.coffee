@@ -120,10 +120,9 @@ SimulationUtils =
       simulation: true
       environment: opts.environment
 
+    app.clearState()
     app.setup ->
       services = app.getSimulationServices()
-
-      app.clearState()
 
       manager = new ServiceManager
       manager.setup topology, {}, services, (err, services) ->
