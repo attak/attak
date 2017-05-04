@@ -57,12 +57,11 @@ test 'app', (suite) ->
       @component.clearState()
       @component.setup ->
         @component.getState (err, state) ->
-          console.log "STATE IS", err, state
           suite.equal Object.keys(state).length, 0
           suite.end()
 
     suite.test 'should update dependencies appropriately', (suite) ->      
-      startState =TopologyUtils.loadTopology
+      startState = TopologyUtils.loadTopology
         topology:
           name: 'testTopo'
           processors:
@@ -91,10 +90,8 @@ test 'app', (suite) ->
         @component.clearState()
         @component.setup =>
           @component.setState startState, endState, opts, (err, state) =>
-            console.log "DONE SETTING STATE", err, state
             @component.getState (err, state) ->
               manager.stopAll ->
-                console.log "STATE IS", err, state
                 suite.notEqual Object.keys(state).length, 0
                 suite.end()
 

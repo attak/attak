@@ -42,14 +42,11 @@ class Streams extends BaseComponent
 
   create: (path, defs, opts) ->
     [namespace, name, args...] = path
-
-    console.log "PLAN CREATE OPTS", path, defs
     [
       {
         msg: "Create new stream"
         run: (done) =>
           if namespace is 'processors'
-            console.log "RUN CREATE STREAM", path, defs, opts.target
             addedState =
               streams: {}
             
@@ -58,7 +55,10 @@ class Streams extends BaseComponent
                 addedState.streams[streamName] =
                   id: uuid.v1()
 
-            done null, addedState
+            modifiedTarget = extend true, opts.target, addedState
+            done null, modifiedTarget
+          else
+            done null
           # @createStream streamName, defs, opts, (err, results) ->
           #   defs = extend defs,
           #     id: uuid.v1()
@@ -68,7 +68,6 @@ class Streams extends BaseComponent
     ]
 
   delete: (path, defs, opts) ->
-    console.log "PLAN DELETE OPTS", path, defs, opts.fullState
     [
       {
         msg: "Remove stream"

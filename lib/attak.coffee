@@ -71,13 +71,10 @@ class ATTAK extends BaseComponent
       opts.target = newState
 
       opts.dependencies = @getDepValues component, newState
-      console.log "COMPONENT SET STATE", component.namespace
       component.setState current, target, opts, (err, results) =>
-        console.log "TOP LEVEL UPDATED STATE", opts.updatedState
         if opts.updatedState
           newState = extend newState, opts.updatedState
           @saveState newState
-        console.log "COMPONENT SET STATE", component.namespace, err, results
         next err
     , (err) =>
       @saveState newState, @path

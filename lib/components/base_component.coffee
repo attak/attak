@@ -68,11 +68,6 @@ class BaseComponent
     @clean newState
 
     differences = Differ.diff currentState, newState
-    for diff in (differences || [])
-      if diff.path
-        diff.path.unshift @namespace
-        console.log "NEW DIFF PATH", @namespace, diff.path
-
     @resolveState currentState, newState, differences, opts, (err, finalState) =>
       if opts.updatedState
         @saveState opts.updatedState
@@ -116,7 +111,7 @@ class BaseComponent
     
     cwd = @options.cwd || process.cwd()
     resolved = nodePath.resolve cwd, stateFilePath
-    console.log "SAVING STATE TO", @namespace, resolved, newState, path, state
+    # console.log "SAVING STATE TO", @namespace, path, resolved, newState, path, state
     fs.writeFileSync resolved, JSON.stringify(state, null, 2)
 
   loadState: (path=[]) ->
@@ -135,15 +130,18 @@ class BaseComponent
     state
 
   handleDiff: (diff, opts) ->
+    fromNamespace = opts.fromNamespace || @namespace
+    fullPath = [fromNamespace, (diff.path || [])...]
+
     switch diff.kind
       when 'N'
-        @create diff.path || [], diff.rhs, opts
+        @create fullPath, diff.rhs, opts
       when 'E'
-        @update diff.path || [], diff.lhs, diff.rhs, opts
+        @update fullPath, diff.lhs, diff.rhs, opts
       when 'D'
-        @delete diff.path || [], diff.lhs, opts
+        @delete fullPath, diff.lhs, opts
       when 'A'
-        @add diff.path || [], diff.index, diff.item, opts
+        @add fullPath, diff.index, diff.item, opts
       else
         throw new Error "Unknown diff type #{diff.kind || diff}"
 
@@ -152,10 +150,8 @@ class BaseComponent
 
     @planResolution currentState, newState, diffs, opts, (err, plan) =>
       if err then console.log "GOT PLAN ERR", err
-      console.log "FULL PLAN", plan
       @executePlan currentState, newState, diffs, plan, opts, (err, finalState, path) =>
         @saveState finalState, path
-        opts.target = finalState
         callback err, finalState
 
   executePlan: (currentState, newState, diffs, plan, opts, callback) ->    
@@ -174,13 +170,10 @@ class BaseComponent
         groups[group].plan.push item
 
     finalState = opts.updatedState || {}
-    console.log "EXECUTE PLAN", Object.keys(groups).length
     async.forEachOf groups, (group, groupId, nextGroup) =>
       async.eachSeries group.plan, (item, nextItem) =>        
-        item.run (err, changedState, changePath=[]) ->
-          console.log "GOT EXECUTE CHANGE", changePath, changedState
+        item.run (err, changedState={}, changePath=[]) ->
           finalState = extend finalState, changedState
-          console.log "AFTER CHANGE STATE", finalState
           nextItem err
       , (err) =>
         if err then return nextGroup err
@@ -191,21 +184,22 @@ class BaseComponent
         else
           nextGroup err
     , (err) ->
-      console.log "FINAL STATE", finalState
       opts.updatedState = finalState
       callback err, finalState
 
   planResolution: (currentState, newState, diffs=[], opts, callback) ->
     plan = []
     opts.fullState = @loadState()
-    console.log "PLAN RESOLUTION", @namespace, diffs, opts.fullState
     
     if @handleDiffs
       plan = @handleDiffs currentState, newState, diffs, opts
-
+      console.log "NOTIFY #{diffs.length} TIMES"
       async.each diffs, (diff, next) =>
-        fullPath = [@namespace, (diff.path || [])...]
-        @manager.notifyChange fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
+        fromNamespace = opts.fromNamespace || @namespace
+        fullPath = [fromNamespace, (diff.path || [])...]
+        console.log "ABOUT TO NOTIFY", fullPath, @namespace, fromNamespace
+        @manager.notifyChange @namespace, fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
+          console.log "NOTIFY CALLBACK", fullPath, fromNamespace
           plan = newPlan
           next()
       , (err) =>
@@ -215,7 +209,6 @@ class BaseComponent
         return callback null, plan
 
       for diff in diffs
-        console.log "HANDLE DIFF", @namespace, diff
         if @children?[diff.path?[0]]
           diffPlan = @children[diff.path].handleDiff diff, opts
           for item in diffPlan
@@ -228,8 +221,10 @@ class BaseComponent
         for item in diffPlan
           item.group = item.group || opts.group
         
-        fullPath = [@namespace, (diff.path || [])...]
-        @manager.notifyChange fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) ->
+        fromNamespace = opts.fromNamespace || @namespace
+        fullPath = [fromNamespace, (diff.path || [])...]
+        console.log "ABOUT TO NOTIFY FROM BOTTOM", fullPath, @namespace, fromNamespace
+        @manager.notifyChange @namespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) ->
           plan = [plan..., diffPlan...]
           callback null, plan
 

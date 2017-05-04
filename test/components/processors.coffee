@@ -51,7 +51,6 @@ test 'processors', (suite) ->
     suite.test 'should be able to clear and have a blank state', (suite) ->
       @component.clearState()
       @component.getState (err, state) ->
-        console.log "STATE IS", err, state
         suite.equal Object.keys(state).length, 0
         suite.end()
 
@@ -63,7 +62,6 @@ test 'processors', (suite) ->
         @component.setState {}, state, opts, (err, state) =>
           @component.getState (err, state) ->
             manager.stopAll ->
-              console.log "STATE IS", err, state
               suite.notEqual Object.keys(state).length, 0
               suite.end()
 

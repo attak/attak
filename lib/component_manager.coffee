@@ -1,3 +1,4 @@
+extend = require 'extend'
 express = require 'express'
 
 rawFields = ['string']
@@ -32,12 +33,20 @@ class ComponentManager
   remove: (guid) ->
     delete @components[guid]
 
-  notifyChange: (path, plan, oldState, newState, diffs, opts, callback) ->
+  notifyChange: (fromNamespace, path, plan, oldState, newState, diffs, opts, callback) ->
+    if opts.preventNotify
+      return callback null, plan
+
+    console.log "TOP LEVEL NOTIFY", fromNamespace, path, newState
     response =
-      handle: (component, params, plan) =>
-        component.planResolution oldState, newState, diffs, opts, (err, newPlan) ->
-          console.log "NOTIFY RESPONSE", err, newPlan
-          callback null, [plan..., newPlan...]
+      handle: (component, params, plan, nextHandler) =>
+        notifyOpts = extend true, {}, opts
+        notifyOpts.preventNotify = true
+        notifyOpts.fromNamespace = fromNamespace
+        console.log "NOTIFY HANDLE", component.namespace, fromNamespace
+        component.planResolution oldState, newState, diffs, notifyOpts, (err, newPlan) ->
+          plan = [plan..., newPlan...]
+          callback null, plan
 
     request =
       method: 'POST'
@@ -49,7 +58,7 @@ class ComponentManager
       url: "/#{path.join '/'}"
 
     @router.handle request, response, (err) ->
-      console.log "NOTIFY RESPONSE", err
+      console.log "HANDLE CALLBACK", request.url
       callback err, plan
 
   flattenObject: (ob) ->

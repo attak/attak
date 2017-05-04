@@ -38,7 +38,6 @@ class Streams extends BaseService
       methods = methods.split ','
 
       for method in methods
-        console.log "HANDLER", method, fullPath
         app[method.toLowerCase()] fullPath, (req, res, next) ->
           handler state, opts, req, res, next
       next()
