@@ -208,7 +208,7 @@ class BaseComponent
       if diffs.length is 0
         return callback null, plan
 
-      for diff in diffs
+      async.eachSeries diffs, (diff, nextDiff) =>
         if @children?[diff.path?[0]]
           diffPlan = @children[diff.path].handleDiff diff, opts
           for item in diffPlan
@@ -226,7 +226,9 @@ class BaseComponent
         console.log "ABOUT TO NOTIFY FROM BOTTOM", fullPath, @namespace, fromNamespace
         @manager.notifyChange @namespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) ->
           plan = [plan..., diffPlan...]
-          callback null, plan
+          nextDiff()
+      , (err) ->
+        callback err, plan
 
   getSimulationServices: () ->
     services = {}
