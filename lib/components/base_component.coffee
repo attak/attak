@@ -193,13 +193,10 @@ class BaseComponent
     
     if @handleDiffs
       plan = @handleDiffs currentState, newState, diffs, opts
-      console.log "NOTIFY #{diffs.length} TIMES"
       async.each diffs, (diff, next) =>
         fromNamespace = opts.fromNamespace || @namespace
         fullPath = [fromNamespace, (diff.path || [])...]
-        console.log "ABOUT TO NOTIFY", fullPath, @namespace, fromNamespace
         @manager.notifyChange @namespace, fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
-          console.log "NOTIFY CALLBACK", fullPath, fromNamespace
           plan = newPlan
           next()
       , (err) =>
@@ -223,7 +220,6 @@ class BaseComponent
         
         fromNamespace = opts.fromNamespace || @namespace
         fullPath = [fromNamespace, (diff.path || [])...]
-        console.log "ABOUT TO NOTIFY FROM BOTTOM", fullPath, @namespace, fromNamespace
         @manager.notifyChange @namespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) ->
           plan = [plan..., diffPlan...]
           nextDiff()
