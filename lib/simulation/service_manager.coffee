@@ -1,15 +1,19 @@
 async = require 'async'
 extend = require 'extend'
+IAM = require './services/iam'
 AWSAPI = require './services/AWS_API'
 Streams = require './services/streams'
+Gateway = require './services/gateway'
 StaticHosting = require './services/static_hosting'
 
 class ServiceManager
 
   setup: (state, opts, configs, callback) ->
     @services = [
+      new IAM
       new AWSAPI
       new Streams
+      new Gateway
       new StaticHosting
     ]
 
