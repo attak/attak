@@ -28,6 +28,36 @@ class ATTAK extends BaseComponent
         path: [key]
       @addChild key, child
 
+  getDepValues: (component, state) ->
+    deps = component.constructor::dependencies
+    if deps?.constructor is Array
+      objDeps = {}
+      for dep in deps
+        objDeps[dep] = {}
+      deps = objDeps
+
+    retval = {}
+
+    for key, val of deps
+      splitKey = key.split '/'
+
+      if val is true or val.value is undefined
+        stateVal = state
+        for item in splitKey
+          stateVal = stateVal?[item]
+        retval[key] = stateVal
+      else if val.value.constructor is Function
+        stateVal = state
+        for item in splitKey
+          if item.indexOf(':') is -1
+            stateVal = stateVal?[item]
+          else
+            for stateKey, stateData of stateVal
+              if stateKey is item.split(':')[1]
+                null
+
+    retval
+
   setState: (currentState, newState, opts, callback) ->
     keys = Object.keys(currentState)
     for key, val of newState
@@ -38,20 +68,17 @@ class ATTAK extends BaseComponent
       component = @children[key]
       current = currentState[key] || {}
       target = newState[key] || {}
+      opts.target = newState
 
-      deps = component.constructor::dependencies
-      if deps?.constructor is Array
-        objDeps = {}
-        for dep in deps
-          objDeps[dep] = {}
-        deps = objDeps
-
-      opts.dependencies = {}
-
-      for key, val of deps
-        opts.dependencies[key] = newState[key]
-
-      component.setState current, target, opts, next
+      opts.dependencies = @getDepValues component, newState
+      console.log "COMPONENT SET STATE", component.namespace
+      component.setState current, target, opts, (err, results) =>
+        console.log "TOP LEVEL UPDATED STATE", opts.updatedState
+        if opts.updatedState
+          newState = extend newState, opts.updatedState
+          @saveState newState
+        console.log "COMPONENT SET STATE", component.namespace, err, results
+        next err
     , (err) =>
       @saveState newState, @path
       callback err

@@ -23,6 +23,7 @@ class Processors extends BaseComponent
 
   structure:
     ':processorName':
+      id: 'id'
       name: 'name'
 
   fetchState: (callback) ->
@@ -62,16 +63,20 @@ class Processors extends BaseComponent
     , (err, numPages) ->
       callback err, functions
 
-  resolveState: (currentState, newState, diffs, opts, callback) ->
-    opts = extend opts,
-      name: opts.dependencies.name
-      services: opts.services
-      simulation: true
-      processors: newState
+  handleDiffs: (currentState, newState, diffs=[], opts) ->
+    [
+      msg: 'resolve processor state'
+      run: (done) ->
+        opts = extend opts,
+          name: opts.dependencies.name
+          services: opts.services
+          simulation: true
+          processors: newState
 
-    LambdaUtils.deployProcessors opts, (err, processors) ->
-      console.log "DONE DEPLOY", err, processors
-      callback err
+        LambdaUtils.deployProcessors opts, (err, processors) ->
+          console.log "DONE DEPLOY", err, processors
+          done err
+    ]
 
   update: (path, oldDefs, newDefs, opts) ->
     console.log "UPDATING PROCESSOR", path[0], oldDefs, newDefs
@@ -108,6 +113,7 @@ class Processors extends BaseComponent
       callback err, results
 
   handleCreateFunction: (state, opts, req, res) ->
+    console.log "CREATE FUNCTION", req.method, req.url, req.params, req.body, req.headers
     name = req.params.functionName
     req.on 'data', -> null
     req.on 'end', ->

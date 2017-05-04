@@ -21,7 +21,10 @@ class BaseComponent
     @listeners = {}
     @dependencies = @options.dependencies || []
 
+    @manager = require '../component_manager'
+
   setup: (callback) ->
+    @manager.add @
     async.forEachOf @children || {}, (child, name, next) ->
       child.setup next
     , (err) =>
@@ -53,11 +56,27 @@ class BaseComponent
       @children = {}
     @children[namespace] = child
 
+  clean: (obj) ->
+    for key, val of obj
+      if val is undefined
+        delete obj[key]
+      else if typeof val is 'object'
+        @clean val
+
   setState: (currentState, newState, opts, callback) ->
+    @clean currentState
+    @clean newState
+
     differences = Differ.diff currentState, newState
-    @resolveState currentState, newState, differences, opts, (err, results) =>
-      @saveState newState, @path
-      callback err, results
+    for diff in (differences || [])
+      if diff.path
+        diff.path.unshift @namespace
+        console.log "NEW DIFF PATH", @namespace, diff.path
+
+    @resolveState currentState, newState, differences, opts, (err, finalState) =>
+      if opts.updatedState
+        @saveState opts.updatedState
+      callback err, opts.updatedState
 
   clearState: (path=[]) ->
     state = @loadState()
@@ -72,9 +91,16 @@ class BaseComponent
       state = {}
 
     stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
+    cwd = @options.cwd || process.cwd()
+    resolved = nodePath.resolve cwd, stateFilePath
     fs.writeFileSync stateFilePath, JSON.stringify(state, null, 2)
 
-  saveState: (newState, path) ->
+    for key, child of (@children || {})
+      child.clearState()
+
+    @manager.remove @guid
+
+  saveState: (newState, path=[]) ->
     state = @loadState()
     target = state
     if path.length > 0
@@ -89,21 +115,23 @@ class BaseComponent
     stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
     
     cwd = @options.cwd || process.cwd()
-
     resolved = nodePath.resolve cwd, stateFilePath
-    console.log "SAVING STATE TO", resolved, state, @namespace
+    console.log "SAVING STATE TO", @namespace, resolved, newState, path, state
     fs.writeFileSync resolved, JSON.stringify(state, null, 2)
 
   loadState: (path=[]) ->
     stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
-    if fs.existsSync stateFilePath
-      state = JSON.parse fs.readFileSync stateFilePath
+    cwd = @options.cwd || process.cwd()
+    resolved = nodePath.resolve cwd, stateFilePath
+    if fs.existsSync resolved
+      state = JSON.parse fs.readFileSync resolved
     else
       state = {}
 
     for pathItem in path
       state = state?[pathItem]
 
+    # console.log "LOAD STATE FROM", @namespace, resolved, state
     state
 
   handleDiff: (diff, opts) ->
@@ -122,11 +150,15 @@ class BaseComponent
   resolveState: (currentState, newState, diffs, opts, callback) ->
     opts.group = uuid.v1()
 
-    plan = @planResolution currentState, newState, diffs, opts
-    @executePlan currentState, newState, diffs, plan, (err, results) ->
-      callback err, results
+    @planResolution currentState, newState, diffs, opts, (err, plan) =>
+      if err then console.log "GOT PLAN ERR", err
+      console.log "FULL PLAN", plan
+      @executePlan currentState, newState, diffs, plan, opts, (err, finalState, path) =>
+        @saveState finalState, path
+        opts.target = finalState
+        callback err, finalState
 
-  executePlan: (currentState, newState, diffs, plan, callback) ->    
+  executePlan: (currentState, newState, diffs, plan, opts, callback) ->    
     groups = {}
 
     for item in plan
@@ -141,10 +173,14 @@ class BaseComponent
       else
         groups[group].plan.push item
 
+    finalState = opts.updatedState || {}
+    console.log "EXECUTE PLAN", Object.keys(groups).length
     async.forEachOf groups, (group, groupId, nextGroup) =>
-
       async.eachSeries group.plan, (item, nextItem) =>        
-        item.run (err) ->
+        item.run (err, changedState, changePath=[]) ->
+          console.log "GOT EXECUTE CHANGE", changePath, changedState
+          finalState = extend finalState, changedState
+          console.log "AFTER CHANGE STATE", finalState
           nextItem err
       , (err) =>
         if err then return nextGroup err
@@ -155,27 +191,47 @@ class BaseComponent
         else
           nextGroup err
     , (err) ->
-      callback err
+      console.log "FINAL STATE", finalState
+      opts.updatedState = finalState
+      callback err, finalState
 
-  planResolution: (currentState, newState, diffs=[], opts) ->
+  planResolution: (currentState, newState, diffs=[], opts, callback) ->
     plan = []
-    for diff in diffs
-      if @children?[diff.path?[0]]
-        childPath = diff.path.shift()
-        diffPlan = @children[childPath].handleDiff diff, opts
-        for item in diffPlan
-          item.source = @children[childPath]
-      else
-        diffPlan = @handleDiff diff, opts
-        for item in diffPlan
-          item.source = @
-        
-      for item in diffPlan
-        item.group = item.group || opts.group
-      
-      plan = [plan..., diffPlan...]
+    opts.fullState = @loadState()
+    console.log "PLAN RESOLUTION", @namespace, diffs, opts.fullState
     
-    return plan
+    if @handleDiffs
+      plan = @handleDiffs currentState, newState, diffs, opts
+
+      async.each diffs, (diff, next) =>
+        fullPath = [@namespace, (diff.path || [])...]
+        @manager.notifyChange fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
+          plan = newPlan
+          next()
+      , (err) =>
+        callback err, plan
+    else
+      if diffs.length is 0
+        return callback null, plan
+
+      for diff in diffs
+        console.log "HANDLE DIFF", @namespace, diff
+        if @children?[diff.path?[0]]
+          diffPlan = @children[diff.path].handleDiff diff, opts
+          for item in diffPlan
+            item.source = @children[diff.path]
+        else
+          diffPlan = @handleDiff diff, opts
+          for item in diffPlan
+            item.source = @
+          
+        for item in diffPlan
+          item.group = item.group || opts.group
+        
+        fullPath = [@namespace, (diff.path || [])...]
+        @manager.notifyChange fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) ->
+          plan = [plan..., diffPlan...]
+          callback null, plan
 
   getSimulationServices: () ->
     services = {}

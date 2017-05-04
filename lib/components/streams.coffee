@@ -1,4 +1,5 @@
 AWS = require 'aws-sdk'
+uuid= require 'uuid'
 async = require 'async'
 extend = require 'extend'
 moment = require 'moment'
@@ -23,8 +24,8 @@ class Streams extends BaseComponent
 
   structure:
     ':streamName':
-      to: 'processors/:processorName'
-      from: 'processors/:processorName'
+      to: '/processors/:processorName/*'
+      from: '/processors/:processorName/*'
       topic: 'string'
 
   simulation:
@@ -39,23 +40,40 @@ class Streams extends BaseComponent
         path: [@path..., 'permissions']
     callback()
 
-  create: ([streamName], streamDefs, opts) ->
-    console.log "PLAN CREATE OPTS", opts
+  create: (path, defs, opts) ->
+    [namespace, name, args...] = path
+
+    console.log "PLAN CREATE OPTS", path, defs
     [
       {
         msg: "Create new stream"
         run: (done) =>
-          @createStream streamName, streamDefs, opts, (err, results) ->
-            done err
+          if namespace is 'processors'
+            console.log "RUN CREATE STREAM", path, defs, opts.target
+            addedState =
+              streams: {}
+            
+            for streamName, stream of opts.target.streams
+              if stream.to is name or stream.from is name
+                addedState.streams[streamName] =
+                  id: uuid.v1()
+
+            done null, addedState
+          # @createStream streamName, defs, opts, (err, results) ->
+          #   defs = extend defs,
+          #     id: uuid.v1()
+          #   console.log "MODIFIED STREAM DEFS", defs
+          #   done err, defs
       }
     ]
 
-  delete: (path, oldDefs, callback) ->
+  delete: (path, defs, opts) ->
+    console.log "PLAN DELETE OPTS", path, defs, opts.fullState
     [
       {
         msg: "Remove stream"
         run: (done) ->
-          console.log "REMOVING STREAM", path[0], oldDefs
+          console.log "REMOVING STREAM", path[0], defs
           done()
       }
     ]
