@@ -15,7 +15,9 @@ CommUtils =
     hasSocket = false
     hasSignal = false
 
+    # socket = Socket 'http://attak.io'
     socket = Socket 'http://localhost:9448'
+    # socket = Socket 'https://attak-supervisor.z5g9.flynnhub.com'
     signal = undefined
 
     socket.on 'connect', ->
