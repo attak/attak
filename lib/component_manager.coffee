@@ -43,7 +43,7 @@ class ComponentManager
         notifyOpts = extend true, {}, opts
         notifyOpts.preventNotify = true
         notifyOpts.fromNamespace = fromNamespace
-        console.log "NOTIFY HANDLE", component.namespace, fromNamespace
+        console.log "NOTIFY HANDLE", component.namespace, fromNamespace, notifyOpts.target
         component.planResolution oldState, newState, diffs, notifyOpts, (err, newPlan) ->
           plan = [plan..., newPlan...]
           callback null, plan
@@ -58,7 +58,7 @@ class ComponentManager
       url: "/#{path.join '/'}"
 
     @router.handle request, response, (err) ->
-      console.log "HANDLE CALLBACK", request.url
+      console.log "UNHANDLED STATE CHANGE EVENT", request.url
       callback err, plan
 
   flattenObject: (ob) ->
