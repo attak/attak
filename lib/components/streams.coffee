@@ -28,11 +28,11 @@ class Streams extends BaseComponent
       'AWS:Kinesis':
         handlers:
           "POST /": @handleKinesisPut
+      'AWS:Lambda':
+        handlers:
+          "POST /:apiVerison/event-source-mappings": @handleCreateEventSourceMapping
 
   init: (callback) ->
-    @children = 
-      permissions: new Permissions extend @options,
-        path: [@path..., 'permissions']
     callback()
 
   create: (path, defs, opts) ->
@@ -157,5 +157,15 @@ class Streams extends BaseComponent
           res.header 'x-amzn-errortype', 'ResourceNotFoundException'
           res.json
             message: "Stream not found: #{req.body.StreamName}"
+
+  handleCreateEventSourceMapping: (state, opts, req, res) ->
+    allData = ""
+    req.on 'data', (data) -> allData += data.toString()
+    req.on 'end', ->
+      mapping = JSON.parse allData
+      console.log "MAPPING DATA", mapping
+      res.json extend mapping,
+        UUID: uuid.v1()
+        LastModified: moment().format()
 
 module.exports = Streams

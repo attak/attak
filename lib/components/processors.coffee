@@ -22,7 +22,6 @@ class Processors extends BaseComponent
           "GET /:apiVerison/functions/:functionName": @handleGetFunction
           "POST /:apiVerison/functions": @handleCreateFunction
           "PUT /:apiVerison/functions": @handleCreateFunction
-          "POST /:apiVerison/event-source-mappings": @handleCreateEventSourceMapping
 
   structure:
     ':processorName':
@@ -169,14 +168,5 @@ class Processors extends BaseComponent
         Code: 
           RepositoryType: 'S3'
           Location: "https://prod-04-2014-tasks.s3.amazonaws.com/snapshots/133713371337/#{name}-#{uuid.v1()}"
-
-  handleCreateEventSourceMapping: (state, opts, req, res) ->
-    allData = ""
-    req.on 'data', (data) -> allData += data.toString()
-    req.on 'end', ->
-      mapping = JSON.parse allData
-      res.json extend mapping,
-        UUID: uuid.v1()
-        LastModified: moment().format()
 
 module.exports = Processors
