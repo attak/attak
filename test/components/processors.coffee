@@ -32,7 +32,9 @@ setupTest = (oldState, newState, component, callback) ->
     for key, val of deps
       opts.dependencies[key] = newState[key]
 
-    callback err, {opts, manager}
+    callback err, {opts, manager}, (finish) ->
+      manager.stopAll ->
+        finish()
 
 test 'processors', (suite) ->
   topology =
@@ -43,27 +45,21 @@ test 'processors', (suite) ->
 
   suite.beforeEach (suite) ->
     @component = new Processors
-      topology: topology
     suite.end()
 
-  suite.test 'state', (suite) ->
 
-    suite.test 'should be able to clear and have a blank state', (suite) ->
-      @component.clearState()
-      @component.getState (err, state) ->
-        suite.equal Object.keys(state).length, 0
-        suite.end()
+  suite.test 'processor creation', (suite) ->      
+    state =
+      hello: () -> null
 
-    suite.test 'should create a processor', (suite) ->      
-      state =
-        hello: uuid.v1()
+    setupTest {}, state, @component, (err, {opts, manager}, cleanup) =>
+      @component.setState {}, state, opts, (err, state) =>
+        @component.getState (err, state) ->
+          cleanup () ->
+            suite.equal state?.processors?.hello?.id,
+              'arn:aws:lambda:us-east-1:133713371337:function:undefined',
+              'should have recorded the new processor\'s ARN as its ID'
 
-      setupTest {}, state, @component, (err, {opts, manager}) =>
-        @component.setState {}, state, opts, (err, state) =>
-          @component.getState (err, state) ->
-            manager.stopAll ->
-              suite.notEqual Object.keys(state).length, 0
-              suite.end()
+            suite.end()
 
-    suite.end()
   suite.end()
