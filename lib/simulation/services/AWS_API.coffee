@@ -7,6 +7,7 @@ class AWSAPI extends BaseService
 
   paths: [
     'AWS:API'
+    'AWS:Lambda'
   ]
 
   setup: (state, opts, callback) ->
