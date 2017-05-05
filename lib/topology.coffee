@@ -57,8 +57,10 @@ TopologyUtils =
 
       topology.processors = processors
 
-    else if topology.processors is undefined
-      topology.processors = {}
+    for procName, procData of (topology.processors || {})
+      if procData.constructor is String
+        topology.processors[procName] =
+          path: procData
 
     return topology
 
@@ -79,10 +81,10 @@ TopologyUtils =
 
     if procData.constructor is String
       source = procData
-    else if procData?.constructor is Function or typeof(procData?.constructor) is 'function'
+    else if procData?.constructor is Function
       source = procData
     else
-      source = procData.source
+      source = procData.source || procData.path
 
     if source.handler
       processor = source
