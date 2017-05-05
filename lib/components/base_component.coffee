@@ -119,7 +119,10 @@ class BaseComponent
     cwd = @options.cwd || process.cwd()
     resolved = nodePath.resolve cwd, stateFilePath
     if fs.existsSync resolved
-      state = JSON.parse fs.readFileSync resolved
+      contents = fs.readFileSync(resolved, 'utf8')
+      if contents in ['undefined', undefined, null]
+        contents = '{}'
+      state = JSON.parse contents
     else
       state = {}
 
