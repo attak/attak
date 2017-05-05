@@ -868,37 +868,15 @@ AWSUtils =
     kinesis.describeStream params, (err, results) ->
       callback err, results
 
-  deployStreams: (topology, program, lambdas, callback) ->
-    async.forEachOfSeries topology.streams, (stream, streamName, next) ->
-      AWSUtils.createStream program, topology.name, streamName, (err, results) ->
-        AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->          
-          lambdaData = lambdas["#{stream.to}-#{program.environment}"]
-          AWSUtils.associateStream program, streamResults.StreamDescription, lambdaData, (err, results) ->
-            next()
-    , ->
-      callback()
-
-  deploySimulationStreams: (program, topology, callback) ->
-    names = []
-    async.forEachOfSeries topology.streams, (stream, streamName, next) ->
-      AWSUtils.createStream program, topology.name, streamName, (err, results) ->
-        AWSUtils.describeStream program, topology.name, streamName, (err, streamResults) ->
-          names.push streamName
-          next()
-    , (err) ->
-      callback names
-
-  associateStream: (program, stream, lambdaData, callback) ->
+  associateStream: (state, stream, lambdaData, opts, callback) ->
     lambda = new AWS.Lambda
-    lambda.config.region = program.region
-    lambda.config.endpoint = 'lambda.us-east-1.amazonaws.com'
-    lambda.region = program.region
-    lambda.endpoint = 'lambda.us-east-1.amazonaws.com'
+      region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:Lambda'].endpoint
 
     params = 
       BatchSize: 100
-      FunctionName: lambdaData.FunctionName
-      EventSourceArn: stream.StreamARN
+      FunctionName: lambdaData.name
+      EventSourceArn: stream.id
       StartingPosition: 'LATEST'
 
     lambda.createEventSourceMapping params, (err, data) ->
