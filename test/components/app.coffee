@@ -3,38 +3,17 @@ tape = require 'tape'
 tapes = require 'tapes'
 async = require 'async'
 attak = require '../../'
+ATTAK = require '../../lib/attak'
 dotenv = require 'dotenv'
 Differ = require 'deep-diff'
 nodePath = require 'path'
-ATTAK = require '../../lib/attak'
+TestUtils = require '../utils'
 Processors = require '../../lib/components/processors'
 TopologyUtils = require '../../lib/topology'
 ServiceManager = require '../../lib/simulation/service_manager'
 
 test = tapes tape
 dotenv.load()
-
-setupTest = (oldState, newState, component, callback) ->
-  services = component.getSimulationServices()
-
-  manager = new ServiceManager
-  manager.setup oldState, {}, services, (err, services) ->
-    opts =
-      role: 'testrole'
-      services: services
-      dependencies: {}
-
-    deps = component.constructor::dependencies
-    if deps?.constructor is Array
-      objDeps = {}
-      for dep in deps
-        objDeps[dep] = {}
-      deps = objDeps
-
-    for key, val of deps
-      opts.dependencies[key] = newState[key]
-
-    callback err, {opts, manager}
 
 test 'app', (suite) ->
   topology = TopologyUtils.loadTopology
@@ -81,7 +60,7 @@ test 'app', (suite) ->
             ['first', 'second']
           ]
 
-      setupTest startState, endState, @component, (err, {opts, manager}) =>
+      TestUtils.setupTest startState, endState, @component, (err, {opts, manager}) =>
         @component = new ATTAK
           topology: topology
           simulation: true
