@@ -155,6 +155,20 @@ class BaseComponent
         callback err, finalState
 
   executePlan: (currentState, newState, diffs, plan, opts, callback) ->    
+    finalState = opts.updatedState || {}
+    async.eachSeries plan, (item, nextItem) =>        
+      item.run (err, changedState={}, changePath=[]) ->
+        finalState = extend finalState, changedState
+        nextItem err
+    , (err) =>
+      if err
+        console.log "CAUGHT ERR DURING ITEM", err
+        return callback err
+
+      opts.updatedState = finalState
+      callback err, finalState
+
+  executePlanInGroups: (currentState, newState, diffs, plan, opts, callback) ->    
     groups = {}
 
     for item in plan
