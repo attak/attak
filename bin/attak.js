@@ -38,7 +38,10 @@ var PREBUILT_DIRECTORY = process.env.PREBUILT_DIRECTORY || '';
 var LOGIN_NAME = process.env.LOGIN_NAME || '';
 var LOCAL_DYNAMO = process.env.LOCAL_DYNAMO || packageJson.dynamo || false
 
-var close = function() {
+var close = function(err) {
+  if (err) {
+    console.log("CAUGHT ERR", err)
+  }
   setTimeout(function() {
     process.exit()
   }, 500)

@@ -128,6 +128,7 @@ SimulationUtils =
       manager.setup topology, {}, services, (err, services) ->
         app.getState (err, state) ->
           app.setState state, topology, {services}, (err, results) ->
+            if err then return callback err
             async.forEachOf input, (data, processorName, nextProcessor) ->
               lambda = new AWS.Lambda
                 region: 'us-east-1'
