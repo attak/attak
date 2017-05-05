@@ -10,9 +10,9 @@ class AWSAPI extends BaseService
     'AWS:Lambda'
   ]
 
-  setup: (state, opts, callback) ->
+  setup: (state, config, opts, callback) ->
     @host = '127.0.0.1'
-    @port = opts.port || 12368
+    @port = config.port || 12368
     @endpoint = "http://#{@host}:#{@port}"
     
     @app = express()
@@ -33,7 +33,7 @@ class AWSAPI extends BaseService
       res.writeHead 200, headers
       res.end()
 
-    async.forEachOf opts.handlers || {}, (handler, route, next) =>
+    async.forEachOf config.handlers || {}, (handler, route, next) =>
       [methods, fullPath] = route.split ' '
       methods = methods.split ','
 

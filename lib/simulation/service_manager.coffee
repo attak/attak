@@ -41,7 +41,7 @@ class ServiceManager
 
       setupOpts = extend opts, config
 
-      service.setup state, config, (err, endpoint) ->
+      service.setup state, config, opts, (err, endpoint) ->
         service.isSetup = true
         delete settingUp[service.guid]
         next err

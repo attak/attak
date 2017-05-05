@@ -7,10 +7,10 @@ class StaticHosting extends BaseService
     'GCE:CloudStorage'
   ]
 
-  setup: (topology, opts, callback) ->
-    workingDir = opts.cwd || process.cwd()
+  setup: (topology, config, opts, callback) ->
+    workingDir = config.cwd || process.cwd()
     hostname = '127.0.0.1'
-    port = opts.port || 12342
+    port = config.port || 12342
     @endpoint = "http://localhost:#{port}"
 
     if topology.static.constructor is String
@@ -26,7 +26,7 @@ class StaticHosting extends BaseService
       .resume()
     
     @server.listen port, hostname, ->
-      opts.report?.info "Static files hosted at: #{@endpoint}/[file path]"
+      config.report?.info "Static files hosted at: #{@endpoint}/[file path]"
         # console.log "Externally visible url: #{url}/[file [path]"
       callback null, @endpoint
 

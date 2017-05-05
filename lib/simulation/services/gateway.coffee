@@ -9,7 +9,7 @@ class Gateway extends BaseService
     'AWS:APIGateway'
   ]
 
-  setup: (state, opts, callback) ->
+  setup: (state, config, opts, callback) ->
     @host = '127.0.0.1'
     @port = opts.port || 24424
     @endpoint = "http://#{@host}:#{@port}"
@@ -32,7 +32,7 @@ class Gateway extends BaseService
       res.writeHead 200, headers
       res.end()
 
-    async.forEachOf opts.handlers || {}, (handler, route, next) =>
+    async.forEachOf config.handlers || {}, (handler, route, next) =>
       [methods, fullPath] = route.split ' '
       methods = methods.split ','
 

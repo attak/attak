@@ -125,7 +125,7 @@ SimulationUtils =
       services = app.getSimulationServices()
 
       manager = new ServiceManager
-      manager.setup topology, {}, services, (err, services) ->
+      manager.setup topology, {}, services, opts, (err, services) ->
         app.getState (err, state) ->
           app.setState state, topology, {services}, (err, results) ->
             if err then return callback err

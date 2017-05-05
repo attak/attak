@@ -9,7 +9,7 @@ class IAM extends BaseService
     'AWS:IAM'
   ]
 
-  setup: (state, opts, callback) ->
+  setup: (state, config, opts, callback) ->
     console.log "SETUP AWS IAM", opts
     @host = '127.0.0.1'
     @port = opts.port || 143523
@@ -32,7 +32,7 @@ class IAM extends BaseService
       res.writeHead 200, headers
       res.end()
 
-    async.forEachOf opts.handlers || {}, (handler, route, next) =>
+    async.forEachOf config.handlers || {}, (handler, route, next) =>
       [methods, fullPath] = route.split ' '
       methods = methods.split ','
 

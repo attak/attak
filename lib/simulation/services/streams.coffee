@@ -10,9 +10,9 @@ class Streams extends BaseService
     'GCE:PubSub'
   ]
 
-  setup: (state, opts, callback) ->
+  setup: (state, config, opts, callback) ->
     @host = '127.0.0.1'
-    @port = opts.port || 6668
+    @port = config.port || 6668
     @endpoint = "http://#{@host}:#{@port}"
     
     app = express()
@@ -33,7 +33,7 @@ class Streams extends BaseService
       res.writeHead 200, headers
       res.end()
 
-    async.forEachOf opts.handlers || {}, (handler, route, next) ->
+    async.forEachOf config.handlers || {}, (handler, route, next) ->
       [methods, fullPath] = route.split ' '
       methods = methods.split ','
 
