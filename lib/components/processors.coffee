@@ -70,7 +70,7 @@ class Processors extends BaseComponent
       msg: 'resolve processor state'
       run: (done) ->
         opts = extend opts,
-          name: opts.dependencies.name
+          name: opts.target.name
           services: opts.services
           simulation: true
           processors: newState

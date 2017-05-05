@@ -19,6 +19,7 @@ class Streams extends BaseComponent
 
   structure:
     ':streamName':
+      id: 'string'
       to: '/processors/:processorName/*'
       from: '/processors/:processorName/*'
       topic: 'string'
@@ -41,19 +42,10 @@ class Streams extends BaseComponent
       {
         msg: "Create new stream"
         run: (done) =>
-          @createStream name, defs, opts, (err, streams, association) ->
+          @createStream name, defs, opts, (err, streamData, association) ->
             if err then return done err
-
-            addedState =
-              streams: {}
-            
-            for streamName, stream of opts.target.streams
-              if stream.to is name or stream.from is name
-                addedState.streams[streamName] =
-                  id: uuid.v1()
-
-            modifiedTarget = extend true, opts.target, addedState
-            done null, modifiedTarget
+            opts.target.streams[streamData.StreamDescription.StreamName].id = streamData.StreamDescription.StreamARN
+            done null, opts.target
       }
     ]
 
@@ -68,10 +60,10 @@ class Streams extends BaseComponent
     ]
 
   createStream: (streamName, defs, opts, callback) ->
-    console.log "CREATING NEW STREAM", streamName, defs, opts
-    AWSUtils.createStream opts, opts.dependencies.name, streamName, (err, results) ->
-      AWSUtils.describeStream opts, opts.dependencies.name, streamName, (err, streamResults) ->
-        targetProcessor = opts.target.processors[defs.to]
+    AWSUtils.createStream opts, opts.target.name, streamName, (err, results) ->
+      AWSUtils.describeStream opts, opts.target.name, streamName, (err, streamResults) ->
+        if err then return callback err
+        targetProcessor = extend true, {}, opts.target.processors[defs.to]
         targetProcessor.name = defs.to
 
         streamDefs =
@@ -103,26 +95,32 @@ class Streams extends BaseComponent
     targetId = req.headers['x-amz-target']
     [version, type] = targetId.split '.'
 
-    streamExists = false
-    for streamName, stream of (state.streams || {})
-      if AWSUtils.getStreamName(state.name, stream.from, stream.to) is req.body.StreamName
-        streamExists = true
+    streamDefs = undefined
+    for streamName, stream of (opts.target.streams || {})
+      thisStream = AWSUtils.getStreamName(opts.target.name, stream.from, stream.to)
+      if thisStream is req.body.StreamName
+        streamDefs = [streamName, stream]
+      else
+        console.log "NO MATCH", req.body.StreamName, thisStream
 
-    console.log "HANDLE KINESIS PUT", req.body, type, streamExists
+    console.log "HANDLE KINESIS PUT", type, streamDefs, req.body
 
     switch type
       when 'CreateStream'
-        console.log "CREATE STREAM", req.body
+        console.log "CREATE STREAM", req.body, opts.target, streamDefs
 
-        if streamExists
-          res.status 502
+        if streamDefs
           res.header 'x-amzn-errortype', 'ResourceInUseException'
           res.json
             message: "Stream already exists with name #{req.body.StreamName}"
         else
-          res.send 200
+          console.log "STREAMS ARE", req.body.StreamName, Object.keys(opts.target.streams || {})
+          opts.target.streams[req.body.StreamName].id = "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
+
+          console.log "AFTER STREAM CREATE", opts.target.streams
+
       when 'DescribeStream'
-        if streamExists
+        if streamDefs
           res.json
             StreamDescription:
               StreamARN: "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
@@ -147,7 +145,7 @@ class Streams extends BaseComponent
       else
         console.log "GOT STREAM PUT", targetId, req.body
 
-        if streamExists
+        if streamDefs
           processorName = @getTargetProcessor state, req.body.StreamName
           data = JSON.parse new Buffer(req.body.Data, 'base64').toString()
           @invokeProcessor processorName, data.data, state, opts, (err, results) ->
