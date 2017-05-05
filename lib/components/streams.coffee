@@ -16,11 +16,6 @@ class Streams extends BaseComponent
     'name'
     'processors/:processorName'
   ]
-      # deploy: (oldState, newState, processorName) ->
-      #   for stream, defs of newState.streams
-      #     if newState.processors[stream.to] is processorName or newState.processors[stream.from] is processorName
-      #       return true
-      #   return false
 
   structure:
     ':streamName':
@@ -46,7 +41,9 @@ class Streams extends BaseComponent
       {
         msg: "Create new stream"
         run: (done) =>
-          if namespace is 'processors'
+          @createStream name, defs, opts, (err, streams, association) ->
+            if err then return done err
+
             addedState =
               streams: {}
             
@@ -57,13 +54,6 @@ class Streams extends BaseComponent
 
             modifiedTarget = extend true, opts.target, addedState
             done null, modifiedTarget
-          else
-            done null
-          # @createStream streamName, defs, opts, (err, results) ->
-          #   defs = extend defs,
-          #     id: uuid.v1()
-          #   console.log "MODIFIED STREAM DEFS", defs
-          #   done err, defs
       }
     ]
 
@@ -81,9 +71,14 @@ class Streams extends BaseComponent
     console.log "CREATING NEW STREAM", streamName, defs, opts
     AWSUtils.createStream opts, opts.dependencies.name, streamName, (err, results) ->
       AWSUtils.describeStream opts, opts.dependencies.name, streamName, (err, streamResults) ->
-        targetProcessor = opts.dependencies.processors["#{defs.to}-#{opts.environment}"]
-        AWSUtils.associateStream opts, streamResults.StreamDescription, targetProcessor, (err, results) ->
-          callback()
+        targetProcessor = opts.target.processors[defs.to]
+        targetProcessor.name = defs.to
+
+        streamDefs =
+          id: streamResults.StreamDescription.StreamARN
+
+        AWSUtils.associateStream opts.target, streamDefs, targetProcessor, opts, (err, associationResults) ->
+          callback err, streamResults, associationResults
 
   invokeProcessor: (processorName, data, state, opts, callback) ->
     context =
@@ -105,8 +100,6 @@ class Streams extends BaseComponent
         return stream.to
 
   handleKinesisPut: (state, opts, req, res) =>
-    console.log "HANDLE KINESIS PUT", req.body, req.headers
-
     targetId = req.headers['x-amz-target']
     [version, type] = targetId.split '.'
 
@@ -114,6 +107,8 @@ class Streams extends BaseComponent
     for streamName, stream of (state.streams || {})
       if AWSUtils.getStreamName(state.name, stream.from, stream.to) is req.body.StreamName
         streamExists = true
+
+    console.log "HANDLE KINESIS PUT", req.body, type, streamExists
 
     switch type
       when 'CreateStream'

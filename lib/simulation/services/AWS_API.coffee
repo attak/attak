@@ -43,7 +43,7 @@ class AWSAPI extends BaseService
       next()
     , =>
       @app.use (req, res, next) ->
-        console.log "AWS API REQUEST", req.method, req.url, req.body
+        console.log "UNHANDLED AWS API REQUEST", req.method, req.url, req.body
         next()
 
     @server = @app.listen @port, () =>
