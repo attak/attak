@@ -14,7 +14,7 @@ class Processors extends BaseComponent
   dependencies: ['name']
   simulation:
     services: ->
-      'AWS:API':
+      'AWS:Lambda':
         handlers:
           "POST /:apiVerison/functions/:functionName/invoke-async": @handleInvoke
           "GET /:apiVerison/functions/:functionName": @handleGetFunction
@@ -73,9 +73,19 @@ class Processors extends BaseComponent
           simulation: true
           processors: newState
 
-        LambdaUtils.deployProcessors opts, (err, processors) ->
-          console.log "DONE DEPLOY", err, processors
-          done err
+        LambdaUtils.deployProcessors opts, (err, procDatas) ->
+          addedState =
+            processors: {}
+          
+          for funcName, procData of procDatas
+            environment = opts.environment || 'development'
+            procName = funcName.split("-#{environment}")[0]
+            addedState.processors[procName] =
+              id: procData.FunctionArn
+
+          modifiedTarget = extend true, opts.target, addedState
+          done null, modifiedTarget
+
     ]
 
   update: (path, oldDefs, newDefs, opts) ->
