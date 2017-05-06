@@ -33,7 +33,7 @@ test 'streams', (suite) ->
 
     component = new Streams
 
-    TestUtils.setupTest {}, state, component, opts, (err, {opts, manager, oldState, newState}, cleanup) =>
+    TestUtils.setupComponentTest {}, state, component, opts, (err, {opts, manager, oldState, newState}, cleanup) =>
       component.setState {}, newState, opts, (err, state) =>
         cleanup () ->
           suite.equal newState?['streams-test-first-second']?.id,

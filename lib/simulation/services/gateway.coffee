@@ -50,7 +50,7 @@ class Gateway extends BaseService
       callback null, @endpoint
 
   stop: (callback) ->
-    @server.close()
+    @server?.close()
     callback()
 
 module.exports = Gateway

@@ -70,7 +70,7 @@ test 'app', (suite) ->
       opts =
         target: endState
 
-      TestUtils.setupTest startState, endState, @component, opts, (err, {opts, manager}) =>
+      TestUtils.setupComponentTest startState, endState, @component, opts, (err, {opts, manager}) =>
         suite.equal err, null
         @component = new ATTAK
           topology: topology

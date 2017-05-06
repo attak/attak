@@ -32,12 +32,11 @@ test 'streams', (suite) ->
 
     TestUtils.setupComponentTest {}, opts.target, component, opts, (err, {opts, manager, oldState, newState}, cleanup) =>
       component.setState {}, newState, opts, (err, state) =>
-        console.log "FINAL STATE IS", err, state
+        state = component.loadState()
         cleanup () ->
-          suite.equal newState?['streams-test-first-second']?.id,
-            'arn:aws:kinesis:us-east-1:133713371337:stream/streams-test-first-second',
-            'should have recorded the new stream\'s ARN as its ID'
-
+          suite.notEqual state.api.gateway?.id, undefined, 'should have created a gateway'
+          suite.notEqual state.api.resources?.root?.id, undefined, 'should have created a root resource'
+          suite.notEqual state.api.resources?.proxy?.id, undefined, 'should have created a proxy resource'
           suite.end()
 
   suite.end()

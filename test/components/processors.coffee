@@ -21,7 +21,7 @@ test 'processors', (suite) ->
 
     component = new Processors
 
-    TestUtils.setupTest {}, state, component, {}, (err, {opts, manager}, cleanup) =>
+    TestUtils.setupComponentTest {}, state, component, {}, (err, {opts, manager}, cleanup) =>
       component.setState {}, state, opts, (err, state) =>
         component.getState (err, state) ->
           cleanup () ->
