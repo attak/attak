@@ -15,6 +15,11 @@ kinesisStreams = require 'kinesis'
 DEBUG = true
 log = -> if DEBUG then console.log arguments...
 
+if process.env.TRAVIS
+  AWS.config.update
+    accessKeyId: "FAKEKEY"
+    secretAccessKey: "FAKESECRET"
+
 padding =
   "201": "",
   "301": " ",
