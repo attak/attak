@@ -18,7 +18,7 @@ class Gateway extends BaseService
     @app.use bodyParser.json
       type: '*/*'
     @app.use bodyParser.urlencoded
-      extended: true
+      extended: false
 
     @app.options '*', (req, res) ->
       headers =
@@ -50,7 +50,7 @@ class Gateway extends BaseService
       callback null, @endpoint
 
   stop: (callback) ->
-    @server?.close()
+    @server.close()
     callback()
 
 module.exports = Gateway

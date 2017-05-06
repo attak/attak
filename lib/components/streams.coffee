@@ -38,7 +38,6 @@ class Streams extends BaseComponent
 
   create: (path, defs, opts) ->
     [namespace, name, args...] = path
-    console.log "PLAN STREAM CREATE", path
     if namespace is 'processors'
       streamName = undefined
       for thisName, stream of opts.target.streams

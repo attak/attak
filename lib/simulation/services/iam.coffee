@@ -10,15 +10,16 @@ class IAM extends BaseService
   ]
 
   setup: (state, config, opts, callback) ->
-    console.log "SETUP AWS IAM", opts
+    console.log "SETUP IAM SERVICE"
     @host = '127.0.0.1'
     @port = opts.port || 143523
     @endpoint = "http://#{@host}:#{@port}"
     
     @app = express()
-    @app.use bodyParser.json()
+    @app.use bodyParser.json
+      type: '*/*'
     @app.use bodyParser.urlencoded
-      extended: true
+      extended: false
 
     @app.options '*', (req, res) ->
       headers =
