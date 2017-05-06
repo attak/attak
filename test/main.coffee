@@ -1,5 +1,5 @@
 require 'coffee-errors'
-# require './components/app'
+require './components/app'
 # require './components/api'
 require './components/streams'
 require './components/component'

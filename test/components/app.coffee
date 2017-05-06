@@ -46,9 +46,10 @@ test 'app', (suite) ->
           processors:
             first: {id: '1234'}
             second: {id: 'abc'}
-          streams: [
-            ['first', 'second']
-          ]
+          streams:
+            'testTopo-first-second':
+              from: 'first'
+              to: 'second'
 
       endState = TopologyUtils.loadTopology
         topology:
@@ -56,11 +57,21 @@ test 'app', (suite) ->
           processors:
             first: {id: '4321'}
             second: {id: 'abc'}
-          streams: [
-            ['first', 'second']
-          ]
+          streams:
+            'testTopo-first-second':
+              from: 'first'
+              to: 'second'
 
-      TestUtils.setupTest startState, endState, @component, (err, {opts, manager}) =>
+      state =
+        'testTopo-first-second':
+          from: 'first'
+          to: 'second'
+
+      opts =
+        target: endState
+
+      TestUtils.setupTest startState, endState, @component, opts, (err, {opts, manager}) =>
+        suite.equal err, null
         @component = new ATTAK
           topology: topology
           simulation: true
@@ -69,7 +80,10 @@ test 'app', (suite) ->
         @component.clearState()
         @component.setup =>
           @component.setState startState, endState, opts, (err, state) =>
+            suite.equal err, null
             @component.getState (err, state) ->
+              suite.equal err, null
+              console.log "STOPPING"
               manager.stopAll ->
                 suite.notEqual Object.keys(state).length, 0
                 suite.end()

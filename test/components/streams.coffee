@@ -23,7 +23,6 @@ test 'streams', (suite) ->
         from: 'first'
         to: 'second'
 
-
     opts =
       target:
         name: 'streams-test'

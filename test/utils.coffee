@@ -10,7 +10,7 @@ TestUtils =
     manager.setup oldState, testOpts, services, (err, services) ->
       opts =
         role: 'testrole'
-        target: extend true, testOpts?.target || {}, newState
+        target: extend true, testOpts?.target || {}, newState || {}
         services: services
 
       callback err, {opts, manager, oldState, newState}, (finish) ->
