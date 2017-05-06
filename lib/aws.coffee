@@ -482,7 +482,7 @@ AWSUtils =
       callback err
 
   setupGateway: (handler, opts, callback) ->
-    log "SETUP GATEWAY", handler, opts
+    log "SETUP GATEWAY", handler
 
     region = opts.region || 'us-east-1'
     environment = opts.environment || 'development'
@@ -490,9 +490,11 @@ AWSUtils =
 
     apiGateway = new AWS.APIGateway
       region: region
+      endpoint: opts.services['AWS:APIGateway'].endpoint
 
     lambda = new AWS.Lambda
       region: region
+      endpoint: opts.services['AWS:Lambda'].endpoint
 
     async.waterfall [
       (done) ->
@@ -504,7 +506,7 @@ AWSUtils =
           done err, {apis}
       ({apis}, done) ->
         existing = undefined
-        for api in apis.items
+        for api in (apis.items || {})
           if api.name is opts.name
             existing = api
             break
@@ -548,13 +550,13 @@ AWSUtils =
 
         apiGateway.getResources params, (err, results) ->
           root = undefined
-          for item in results.items
+          for item in (results?.items || [])
             if item.path is '/'
               root = item
               break
 
-          log "GOT ROOT RESOURCE", err, root, results.items
-          done err, {gateway, root, resources: results.items}
+          log "GOT ROOT RESOURCE", err, root, results
+          done err, {gateway, root, resources: results?.items || []}
 
       ({gateway, root, resources}, done) ->
         for item in resources
@@ -566,6 +568,7 @@ AWSUtils =
           parentId: root.id
           restApiId: gateway.id
 
+        log "CREATING PROXY RESOURCE", params
         apiGateway.createResource params, (err, proxy) ->
           log "CREATED PROXY RESOURCE", err, proxy
           done err, {gateway, root, proxy}
@@ -573,9 +576,10 @@ AWSUtils =
       ({gateway, root, proxy}, done) ->
         iam = new AWS.IAM
           region: region
+          endpoint: opts.services['AWS:IAM'].endpoint
 
         iam.getUser (err, results) ->
-          log "GOT ACCOUNT INFO", gateway, results
+          log "GOT ACCOUNT INFO", gateway, results, opts.services['AWS:IAM'].endpoint
           account = results?.User?.UserId
           done err, {gateway, root, account, proxy}
 
@@ -595,6 +599,8 @@ AWSUtils =
             httpMethod: 'ANY'
             authorizationType: "NONE"
 
+
+          log "CREATING ROOT METHOD", params, results
           apiGateway.putMethod params, (err, results) ->
             log "CREATE ROOT METHOD RESULTS", err, results
             done err, {gateway, root, account, proxy}
