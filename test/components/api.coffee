@@ -3,45 +3,41 @@ tape = require 'tape'
 tapes = require 'tapes'
 async = require 'async'
 attak = require '../../'
+ATTAK = require '../../lib/attak'
+dotenv = require 'dotenv'
+extend = require 'extend'
 Differ = require 'deep-diff'
+Streams = require '../../lib/components/streams'
 nodePath = require 'path'
-API = require '../../lib/components/api'
+TestUtils = require '../utils'
+TopologyUtils = require '../../lib/topology'
+ServiceManager = require '../../lib/simulation/service_manager'
 
 test = tapes tape
+dotenv.load()
 
-test 'api', (suite) ->
-  suite.test 'state', (suite) ->
+test 'streams', (suite) ->
 
-    topology =
-      name: 'state-tests'
-      api: 'endpoint'
-      processors:
-        endpoint: (event, context, callback) ->
-          callback null, {ok: true}
+  suite.test 'processor creation', (suite) ->
+    opts =
+      target: TopologyUtils.loadTopology
+        topology:
+          name: 'api-test'
+          api: 'endpoint'
+          processors:
+            endpoint: (event, context, callback) -> callback null, {ok: true}
 
-    suite.beforeEach (suite) ->
-      @component = new API
-        topology: topology
-      
-      suite.end()
+    component = new ATTAK
+      topology: opts.target
 
-    suite.test 'should have a blank initial state', (suite) ->
-      @component.getState (err, state) ->
-        suite.equal err, null, err?.stack
-        suite.notEqual state, undefined, 'no state returned'
-        suite.equal Object.keys(state || {}).length, 0, 'non-blank state'
-        suite.end()
-
-    suite.test 'should create a gateway and associate it with a processor', (suite) ->
-      state = 'endpoint'
-
-      @component.getState (err, startState) ->
-        @component.setState startState, state, {}, (err, results) =>
-          @component.getState (err, endState) ->
-            suite.equal err, null, err?.stack
-            suite.notEqual endState, undefined, 'no state returned'
-            suite.notEqual Object.keys(endState || {}).length, 0, 'failed to create processor' 
+    TestUtils.setupComponentTest {}, opts.target, component, opts, (err, {opts, manager, oldState, newState}, cleanup) =>
+      component.setState {}, newState, opts, (err, state) =>
+        console.log "FINAL STATE IS", err, state
+        cleanup () ->
+          suite.equal newState?['streams-test-first-second']?.id,
+            'arn:aws:kinesis:us-east-1:133713371337:stream/streams-test-first-second',
+            'should have recorded the new stream\'s ARN as its ID'
 
           suite.end()
-    suite.end()
+
   suite.end()
