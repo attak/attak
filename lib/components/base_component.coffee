@@ -270,7 +270,7 @@ class BaseComponent
         services[namespace] = extend existing, config
 
     for childName, child of (@children || {})
-      services = extend services, child.getSimulationServices()
+      services = extend true, services, child.getSimulationServices()
 
     return services
 

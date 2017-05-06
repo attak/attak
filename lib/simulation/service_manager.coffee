@@ -1,6 +1,6 @@
+IAM = require './services/iam'
 async = require 'async'
 extend = require 'extend'
-IAM = require './services/iam'
 AWSAPI = require './services/AWS_API'
 Streams = require './services/streams'
 Gateway = require './services/gateway'
@@ -18,9 +18,9 @@ class ServiceManager
     ]
 
     @handlers = {}
-    for defs in @services
-      for path in defs.paths
-        @handlers[path] = defs
+    for service in @services
+      for path in service.paths
+        @handlers[path] = service
 
     settingUp = {}
     async.forEachOf configs, (config, serviceKey, next) =>

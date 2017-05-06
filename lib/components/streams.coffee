@@ -38,11 +38,21 @@ class Streams extends BaseComponent
 
   create: (path, defs, opts) ->
     [namespace, name, args...] = path
+    console.log "PLAN STREAM CREATE", path
+    if namespace is 'processors'
+      streamName = undefined
+      for thisName, stream of opts.target.streams
+        if stream.to is name or stream.from is name
+          streamName = thisName
+          defs = stream
+    else
+      streamName = name
+
     [
       {
         msg: "Create new stream"
         run: (done) =>
-          @createStream name, defs, opts, (err, streamData, association) ->
+          @createStream streamName, defs, opts, (err, streamData, association) ->
             if err then return done err
             opts.target.streams[streamData.StreamDescription.StreamName].id = streamData.StreamDescription.StreamARN
             done null, opts.target
@@ -96,7 +106,7 @@ class Streams extends BaseComponent
     [version, type] = targetId.split '.'
 
     streamDefs = undefined
-    for streamName, stream of (opts.target.streams || {})
+    for streamName, stream of (opts.target?.streams || {})
       thisStream = AWSUtils.getStreamName(opts.target.name, stream.from, stream.to)
       if thisStream is req.body.StreamName
         streamDefs = [streamName, stream]
@@ -114,7 +124,7 @@ class Streams extends BaseComponent
           res.json
             message: "Stream already exists with name #{req.body.StreamName}"
         else
-          console.log "STREAMS ARE", req.body.StreamName, Object.keys(opts.target.streams || {})
+          console.log "STREAMS ARE", req.body.StreamName, Object.keys(opts.target?.streams || {}), opts.target
           opts.target.streams[req.body.StreamName].id = "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
 
           console.log "AFTER STREAM CREATE", opts.target.streams
