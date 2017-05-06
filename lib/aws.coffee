@@ -15,13 +15,6 @@ kinesisStreams = require 'kinesis'
 DEBUG = true
 log = -> if DEBUG then console.log arguments...
 
-credentials = new AWS.SharedIniFileCredentials
-  profile: 'default'
-
-AWS.config.credentials = credentials
-AWS.config.apiVersions =
-  kinesis: '2013-12-02'
-
 padding =
   "201": "",
   "301": " ",
