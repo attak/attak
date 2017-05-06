@@ -62,6 +62,11 @@ TopologyUtils =
         topology.processors[procName] =
           path: procData
 
+    if topology.api?.constructor is String
+      objDefs =
+        handler: topology.api
+      topology.api = objDefs
+
     return topology
 
   getProcessor: (program, topology, name) ->
