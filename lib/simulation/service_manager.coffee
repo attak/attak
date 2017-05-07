@@ -5,6 +5,7 @@ AWSAPI = require './services/AWS_API'
 Streams = require './services/streams'
 Gateway = require './services/gateway'
 StaticHosting = require './services/static_hosting'
+CloudWatchEvents = require './services/cloudwatch_events'
 
 class ServiceManager
 
@@ -15,6 +16,7 @@ class ServiceManager
       new Streams
       new Gateway
       new StaticHosting
+      new CloudWatchEvents
     ]
 
     @handlers = {}
@@ -24,8 +26,8 @@ class ServiceManager
 
     settingUp = {}
     async.forEachOf configs, (config, serviceKey, next) =>
-      config.services = @handlers
       service = @handlers[serviceKey]
+
       if service is undefined
         return next()
 
@@ -38,12 +40,12 @@ class ServiceManager
         return next()
 
       settingUp[service.guid] = service
-
       setupOpts = extend opts, config
 
-      service.setup state, config, opts, (err, endpoint) ->
+      service.setup state, config, opts, (err, endpoint) =>
+        service = @handlers[serviceKey]
         service.isSetup = true
-        delete settingUp[service.guid]
+        settingUp[service.guid] = undefined
         next err
     , (err) =>
       callback err, @handlers

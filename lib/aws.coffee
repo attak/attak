@@ -412,20 +412,24 @@ AWSUtils =
 
     lambda = new AWS.Lambda
       region: region
+      endpoint: opts.services['AWS:Lambda'].endpoint
 
     apiGateway = new AWS.APIGateway
       region: region
+      endpoint: opts.services['AWS:APIGateway'].endpoint
 
     cloudWatchEvents = new AWS.CloudWatchEvents
       region: region
+      endpoint: opts.services['AWS:CloudWatchEvents'].endpoint
 
-    async.each topology.schedule, (defs, next) ->
+    async.forEachOf topology.schedule, (defs, scheduleName, next) ->
+      console.log "SETUP SCHEDULE", scheduleName, defs, opts.services['AWS:CloudWatchEvents'].endpoint
       functionName = "#{defs.processor}-#{environment}"
       
       async.waterfall [
         (done) ->
           params =
-            Name: "#{topology.name}-#{defs.name}"
+            Name: "#{topology.name}-#{scheduleName}"
             ScheduleExpression: "#{defs.type}(#{defs.value})"
 
           cloudWatchEvents.putRule params, (err, results) ->
@@ -447,18 +451,18 @@ AWSUtils =
 
         ({arn, policy}, done) ->
           for statement in (policy?.Statement || [])
-            if statement.Sid is "schedule-#{topology.name}-#{defs.name}-#{defs.processor}"
+            if statement.Sid is "schedule-#{topology.name}-#{scheduleName}-#{defs.processor}"
               return done null, {arn, policy}
 
           params =
             Action: "lambda:InvokeFunction"
             Principal: "events.amazonaws.com"
             SourceArn: arn
-            StatementId: "schedule-#{topology.name}-#{defs.name}-#{defs.processor}"
+            StatementId: "schedule-#{topology.name}-#{scheduleName}-#{defs.processor}"
             FunctionName: functionName
 
           lambda.addPermission params, (err, results) ->
-            log "ADD SCHEDULE #{defs.name} PERMISSIONS RESULTS", err, results
+            log "ADD SCHEDULE #{scheduleName} PERMISSIONS RESULTS", err, results
             done err, {arn, policy}
         
         ({arn, policy}, done) ->
@@ -467,9 +471,9 @@ AWSUtils =
           accountId = splitArn[4]
 
           params =
-            Rule: "#{topology.name}-#{defs.name}"
+            Rule: "#{topology.name}-#{scheduleName}"
             Targets: [{
-              Id: "target-#{topology.name}-#{defs.name}-#{functionName}"
+              Id: "target-#{topology.name}-#{scheduleName}-#{functionName}"
               Arn: "arn:aws:lambda:#{region}:#{accountId}:function:#{functionName}"
             }]
 

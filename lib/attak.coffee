@@ -13,6 +13,7 @@ class ATTAK extends BaseComponent
     api: require './components/api'
     name: require './components/name'
     streams: require './components/streams'
+    schedule: require './components/schedule'
     processors: require './components/processors'
 
   constructor: (@options={}) ->
