@@ -422,6 +422,7 @@ AWSUtils =
       region: region
       endpoint: opts.services['AWS:CloudWatchEvents'].endpoint
 
+    scheduleId = undefined
     async.forEachOf topology.schedule, (defs, scheduleName, next) ->
       console.log "SETUP SCHEDULE", scheduleName, defs, opts.services['AWS:CloudWatchEvents'].endpoint
       functionName = "#{defs.processor}-#{environment}"
@@ -478,19 +479,20 @@ AWSUtils =
             }]
 
           cloudWatchEvents.putTargets params, (err, results) ->
-            log "PUT TARGETS RESULTS", params, err, results
+            log "PUT TARGETS RESULTS", params, err, params.Targets[0].Id, results
+            scheduleId = params.Targets[0].Id
             done err
       ], (err) ->
         next err
     , (err) ->
-      callback err
+      callback err, scheduleId
 
-  setupGateway: (handler, opts, callback) ->
-    log "SETUP GATEWAY", handler
+  setupGateway: (config, opts, callback) ->
+    log "SETUP GATEWAY", config
 
     region = opts.region || 'us-east-1'
     environment = opts.environment || 'development'
-    functionName = "#{handler}-#{environment}"
+    functionName = "#{config.handler}-#{environment}"
 
     apiGateway = new AWS.APIGateway
       region: region
@@ -511,7 +513,7 @@ AWSUtils =
       ({apis}, done) ->
         existing = undefined
         for api in (apis.items || {})
-          if api.name is opts.name
+          if api.name is config.name
             existing = api
             break
 
@@ -521,7 +523,7 @@ AWSUtils =
         else
           log "API DOESNT EXIST YET"
           params =
-            name: opts.name
+            name: config.name
 
           apiGateway.createRestApi params, (err, gateway) ->
             log "CREATED API", err, gateway
@@ -753,17 +755,17 @@ AWSUtils =
             next err
 
         , (err) ->
-          done err, {gateway, root, account}
+          done err, {gateway, root, account, proxy}
 
-      ({gateway, root, account}, done) ->
+      ({gateway, root, account, proxy}, done) ->
         params =
           FunctionName: functionName
 
         lambda.getPolicy params, (err, results) ->
           policy = JSON.parse(results.Policy)
-          done err, {gateway, root, account, policy}
+          done err, {gateway, root, account, policy, proxy}
 
-      ({gateway, root, account, policy}, done) ->
+      ({gateway, root, account, policy, proxy}, done) ->
         for statement in policy.Statement
           if statement.Sid is "apigateway-#{gateway.name}-star"
             return done null, {gateway, root, account, policy}
@@ -777,9 +779,9 @@ AWSUtils =
 
         lambda.addPermission params, (err, results) ->
           log "ADD STAR PERMISSIONS RESULTS", results
-          done null, {gateway, root, account, policy}
+          done null, {gateway, root, account, policy, proxy}
 
-      ({gateway, root, account, policy}, done) ->
+      ({gateway, root, account, policy, proxy}, done) ->
         for statement in policy.Statement
           if statement.Sid is "apigateway-#{gateway.name}-any"
             return done null, {gateway, root, account, policy}
@@ -793,9 +795,9 @@ AWSUtils =
 
         lambda.addPermission params, (err, results) ->
           log "ADD PERMISSIONS RESULTS", results, params
-          done null, {gateway, root, account, policy}
+          done null, {gateway, root, account, policy, proxy}
 
-      ({gateway, root, account, policy}, done) ->
+      ({gateway, root, account, policy, proxy}, done) ->
         for statement in policy.Statement
           if statement.Sid is "apigateway-#{gateway.name}-proxy"
             return done null, {gateway, root, account, policy}
@@ -809,18 +811,18 @@ AWSUtils =
 
         lambda.addPermission params, (err, results) ->
           log "ADD PROXY PERMISSIONS RESULTS", err, results, params
-          done null, {gateway, root, account}
+          done null, {gateway, root, account, proxy}
 
-      ({gateway, root, account}, done) ->
+      ({gateway, root, account, proxy}, done) ->
         params =
           restApiId: gateway.id
           stageName: environment
 
         apiGateway.createDeployment params, (err, deployment) ->
           log "DEPLOYMENT RESULTS", err, deployment
-          done err, {gateway, root, account, deployment}
+          done err, {gateway, root, account, deployment, proxy}
 
-      ({gateway, root, account, deployment}, done) ->
+      ({gateway, root, account, deployment, proxy}, done) ->
         params =
           restApiId: gateway.id
           deploymentId: deployment.id
@@ -833,12 +835,12 @@ AWSUtils =
               break
 
           if existing
-            done null, {gateway, root, account, deployment}
+            done null, {gateway, root, account, deployment, proxy}
           else
             params.stageName = environment
             apiGateway.createStage params, (err, results) ->
               log "CREATE STAGE RESULTS", err, results
-              done err, {gateway, root, account, deployment}
+              done err, {gateway, root, account, deployment, proxy}
 
     ], (err, results) ->
       {gateway, root, account} = results || {}

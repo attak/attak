@@ -57,9 +57,14 @@ class ComponentManager
         newState: newState
       url: "/#{path.join '/'}"
 
+    # Express router sometimes calls back multiple times for 
+    # unhandled changes, so we ignore subsequent ones
+    hasCalledBack = false
     @router.handle request, response, (err) ->
-      console.log "UNHANDLED STATE CHANGE EVENT", request.url
-      callback err, plan
+      if hasCalledBack is false
+        hasCalledBack = true
+        console.log "UNHANDLED STATE CHANGE EVENT", request.url
+        callback err, plan
 
   flattenObject: (ob) ->
     what = Object.prototype.toString

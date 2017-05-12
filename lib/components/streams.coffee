@@ -36,25 +36,39 @@ class Streams extends BaseComponent
   init: (callback) ->
     callback()
 
+  getProcessorStreams: (state, processorName) ->
+    streams = []
+    for thisName, stream of (state.streams || {})
+      if stream.to is name or stream.from is name
+        streams.push [thisName, stream]
+    streams
+
   create: (path, defs, opts) ->
-    [namespace, name, args...] = path
-    if namespace is 'processors'
-      streamName = undefined
-      for thisName, stream of opts.target.streams
-        if stream.to is name or stream.from is name
-          streamName = thisName
-          defs = stream
-    else
-      streamName = name
+    [namespace, args...] = path
 
     [
       {
         msg: "Create new stream"
-        run: (done) =>
-          @createStream streamName, defs, opts, (err, streamData, association) ->
-            if err then return done err
-            opts.target.streams[streamData.StreamDescription.StreamName].id = streamData.StreamDescription.StreamARN
-            done null, opts.target
+        run: (state, done) =>
+          console.log "RUN CREATE STREAMS", path, defs, state
+          if namespace is 'processors'
+            [procName, procArgs...] = args
+            streams = @getProcessorStreams state, procName
+            async.eachSeries streams, ([streamName, streamDefs], nextStream) ->
+              @createStream state, streamName, defs, opts, (err, streamData, association) ->
+                if err then return done err
+                state.streams[streamData.StreamDescription.StreamName].id = streamData.StreamDescription.StreamARN
+                nextStream err
+            , (err) ->
+              done err, state
+          else if namespace is 'streams'
+            [streamName, streamDefs] = args
+            @createStream state, streamName, defs, opts, (err, streamData, association) ->
+              if err then return done err
+              extendedState = extend state,
+                "#{streamData.StreamDescription.StreamName}":
+                  id: streamData.StreamDescription.StreamARN
+              done err, extendedState
       }
     ]
 
@@ -62,23 +76,25 @@ class Streams extends BaseComponent
     [
       {
         msg: "Remove stream"
-        run: (done) ->
+        run: (state, done) ->
           console.log "REMOVING STREAM", path[0], defs
           done()
       }
     ]
 
-  createStream: (streamName, defs, opts, callback) ->
-    AWSUtils.createStream opts, opts.target.name, streamName, (err, results) ->
-      AWSUtils.describeStream opts, opts.target.name, streamName, (err, streamResults) ->
+  createStream: (state, streamName, defs, opts, callback) ->
+    console.log "ACTUAL CREATE STREAM", streamName, defs, state
+    AWSUtils.createStream opts, state.name, streamName, (err, results) ->
+      AWSUtils.describeStream opts, state.name, streamName, (err, streamResults) ->
         if err then return callback err
-        targetProcessor = extend true, {}, opts.target.processors[defs.to]
+        console.log "DESCRIBE STREAM DONE", err, streamResults, state
+        targetProcessor = extend true, {}, state.processors[defs.to]
         targetProcessor.name = defs.to
 
         streamDefs =
           id: streamResults.StreamDescription.StreamARN
 
-        AWSUtils.associateStream opts.target, streamDefs, targetProcessor, opts, (err, associationResults) ->
+        AWSUtils.associateStream state, streamDefs, targetProcessor, opts, (err, associationResults) ->
           callback err, streamResults, associationResults
 
   invokeProcessor: (processorName, data, state, opts, callback) ->
@@ -100,33 +116,62 @@ class Streams extends BaseComponent
       if streamName is targetStream
         return stream.to
 
-  handleKinesisPut: (state, opts, req, res) =>
+  handleKinesisPut: (state, opts, req, res, done) =>
     targetId = req.headers['x-amz-target']
     [version, type] = targetId.split '.'
 
+    if state.name is undefined and state.processors
+      for procName, procDefs of state.processors
+        [thisStateName, otherProc] = req.body.StreamName.split("-#{procName}-")
+        console.log "LOOKING AT", procName, thisStateName, otherProc, state.processors?[otherProc]?
+        if otherProc and state.processors?[otherProc] isnt undefined
+          stateName = thisStateName
+          break
+    else
+      stateName = state.name
+
     streamDefs = undefined
-    for streamName, stream of (opts.target?.streams || {})
-      thisStream = AWSUtils.getStreamName(opts.target.name, stream.from, stream.to)
+    for streamName, stream of (state.streams || {})
+      thisStream = AWSUtils.getStreamName(stateName, stream.from, stream.to)
+      console.log "EXAMINING", req.body.StreamName, thisStream, stateName, stream
       if thisStream is req.body.StreamName
         streamDefs = [streamName, stream]
       else
-        console.log "NO MATCH", req.body.StreamName, thisStream
+        console.log "NO MATCH", req.body.StreamName, thisStream, stream
 
     console.log "HANDLE KINESIS PUT", type, streamDefs, req.body
 
     switch type
       when 'CreateStream'
-        console.log "CREATE STREAM", req.body, opts.target, streamDefs
+        console.log "CREATE STREAM", req.body, state, streamDefs
 
         if streamDefs
           res.header 'x-amzn-errortype', 'ResourceInUseException'
           res.json
             message: "Stream already exists with name #{req.body.StreamName}"
         else
-          console.log "STREAMS ARE", req.body.StreamName, Object.keys(opts.target?.streams || {}), opts.target
-          opts.target.streams[req.body.StreamName].id = "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
+          console.log "STREAMS ARE", req.body.StreamName, Object.keys(state.streams || {}), state
 
-          console.log "AFTER STREAM CREATE", opts.target.streams
+          if state.streams is undefined
+            state.streams = {}
+          if state.streams[req.body.StreamName] is undefined
+            state.streams[req.body.StreamName] = {}
+
+          newStreamState =
+            id: "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
+
+          for procName, procDefs of (state.processors || {})
+            [stateName, otherProc] = req.body.StreamName.split("#{procName}-")
+            if otherProc and state.processors?[otherProc] isnt undefined
+              newStreamState.to = otherProc
+              newStreamState.from = procName
+              break
+
+          state.streams[req.body.StreamName] = newStreamState
+
+          console.log "AFTER STREAM CREATE", state.streams
+          res.json ok: true
+          done null, state
 
       when 'DescribeStream'
         if streamDefs

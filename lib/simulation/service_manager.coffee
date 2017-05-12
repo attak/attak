@@ -42,7 +42,7 @@ class ServiceManager
       settingUp[service.guid] = service
       setupOpts = extend opts, config
 
-      service.setup state, config, opts, (err, endpoint) =>
+      service.setup config, opts, (err, endpoint) =>
         service = @handlers[serviceKey]
         service.isSetup = true
         settingUp[service.guid] = undefined

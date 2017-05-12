@@ -1,6 +1,7 @@
 AWS = require 'aws-sdk'
 uuid = require 'uuid'
 async = require 'async'
+extend = require 'extend'
 AWSUtils = require '../aws'
 BaseComponent = require './base_component'
 
@@ -26,11 +27,17 @@ class Schedule extends BaseComponent
     [
       {
         msg: 'create new schedule item'
-        run: (done) ->
-          console.log "CREATING SCHEDULE", opts.target
+        run: (state, done) ->
+          console.log "CREATING SCHEDULE", path, newDefs
+          [namespace, args...] = path
+          [scheduleName, scheduleArgs...] = args
+
           AWSUtils.setupSchedule opts.target, opts, (err, results) ->
-            console.log "SCHEDULE SETUP RESULTS", err, results
-            done err
+            state = extend true, state,
+              schedule:
+                "#{scheduleName}":
+                  id: results
+            done err, state
       }
     ]
 
@@ -38,7 +45,7 @@ class Schedule extends BaseComponent
     [
       {
         msg: 'Remove name'
-        run: (done) ->
+        run: (state, done) ->
           console.log "REMOVING SCHEDULE", path
           done()
       }

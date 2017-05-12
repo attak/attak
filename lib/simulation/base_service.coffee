@@ -2,13 +2,14 @@ uuid = require 'uuid'
 async = require 'async'
 express = require 'express'
 bodyParser = require 'body-parser'
+BaseComponent = require '../components/base_component'
 
 class BaseService
 
   constructor: (@options) ->
     @guid = uuid.v1()
     
-  setup: (state, config, opts, callback) ->
+  setup: (config, opts, callback) ->
     @app = express()
     @app.use bodyParser.json
       type: '*/*'
@@ -33,8 +34,11 @@ class BaseService
 
       for method in methods
         @app[method.toLowerCase()] fullPath, (req, res, next) ->
-          handler state, opts, req, res, next
-      next()
+          state = BaseComponent::loadState()
+          handler state, opts, req, res, (err, changedState) ->
+            console.log "BASE SERVICE HANDLER RESULTS", err, changedState
+            BaseComponent::saveState changedState
+            next err
     , =>
       @app.use (req, res, next) =>
         console.log "UNHANDLED #{@constructor.name} API REQUEST", req.method, req.url, req.body
@@ -42,5 +46,10 @@ class BaseService
 
     @server = @app.listen @port, () =>
       callback null, @endpoint
+
+  stop: (callback) ->
+    console.log "STOP", @constructor.name
+    @server?.close()
+    callback()
 
 module.exports = BaseService

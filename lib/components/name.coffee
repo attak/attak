@@ -14,7 +14,7 @@ class Name extends BaseComponent
     [
       {
         msg: 'Remove name'
-        run: (done) ->
+        run: (state, done) ->
           console.log "REMOVING NAME", path[0], oldDefs
           done()
       }

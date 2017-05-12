@@ -30,8 +30,4 @@ class StaticHosting extends BaseService
         # console.log "Externally visible url: #{url}/[file [path]"
       callback null, @endpoint
 
-  stop: (callback) ->
-    @server?.close()
-    callback()
-
 module.exports = StaticHosting

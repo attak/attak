@@ -35,22 +35,21 @@ class ATTAK extends BaseComponent
       if key not in keys
         keys.push key
 
-    async.each keys, (key, next) =>
+    async.eachSeries keys, (key, next) =>
       component = @children[key]
-      current = currentState[key] || {}
       target = newState[key] || {}
-      opts.target = newState
 
-      component.setState current, target, opts, (err, results) =>
-        if opts.updatedState
-          newState = extend newState, opts.updatedState
-          @saveState newState
+      console.log "SET COMPONENT STATE", component.constructor.name
+      component.setState currentState, target, opts, (err, results) =>
+        console.log "FINISHED SETTING COMPONENT STATE", component.constructor.name, err
+        extend true, currentState, @loadState()
+        console.log "UPDATED CURRENT STATE", currentState
         next err
     , (err) =>
-      @saveState newState, @path
-      callback err
+      console.log "ALL DONE SETTING STATE", err
+      callback err, currentState
 
-  handleDiff: (diff, opts) ->
+  handleDiff: (state, diff, opts) ->
     async.forEachOf diff.rhs, (val, key, next) =>
       component = @children[key]
       if component is undefined

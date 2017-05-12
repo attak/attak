@@ -7,14 +7,10 @@ class Streams extends BaseService
     'GCE:PubSub'
   ]
 
-  setup: (state, config, opts, callback) ->
+  setup: (config, opts, callback) ->
     @host = '127.0.0.1'
     @port = config.port || 6668
     @endpoint = "http://#{@host}:#{@port}"
     super arguments...
-
-  stop: (callback) ->
-    @server?.close()
-    callback()
 
 module.exports = Streams

@@ -1,6 +1,7 @@
 AWS = require 'aws-sdk'
 uuid = require 'uuid'
 async = require 'async'
+extend = require 'extend'
 AWSUtils = require '../aws'
 BaseComponent = require './base_component'
 
@@ -35,11 +36,31 @@ class API extends BaseComponent
     [
       {
         msg: 'Create new API'
-        run: (done) ->
-          console.log "CREATING NEW API", opts.target
-          AWSUtils.setupGateway opts.target.api.handler, opts, (err, results) ->
-            console.log "GATEWAY RESULTS", err, results
-            done()
+        run: (state, done) ->
+          console.log "CREATING NEW API", state
+          [component, args...] = path
+          if component is 'api'
+            [property, val] = args
+            switch property
+              when 'handler'
+                gatewayOpts =
+                  name: "#{state.name}-#{opts.environment || 'development'}"
+                  handler: val
+
+                AWSUtils.setupGateway gatewayOpts, opts, (err, results) ->
+                  console.log "GATEWAY RESULTS", err, results
+                  state.api = extend true, state.api,
+                    resources:
+                      root: results.root
+                      proxy: results.proxy
+                    gateway: results.gateway
+                    deployment: results.deployment
+
+                  done null, state
+              else
+                console.log "UNKNOWN API PROPERTY CHANGE EVENT", property
+          else
+            console.log "API CHANGE THAT ISNT FROM API", path, newDefs
       }
     ]
 

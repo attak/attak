@@ -68,9 +68,9 @@ class Processors extends BaseComponent
   handleDiffs: (currentState, newState, diffs=[], opts) ->
     [
       msg: 'resolve processor state'
-      run: (done) ->
+      run: (state, done) ->
         opts = extend opts,
-          name: opts.target.name
+          name: currentState.name
           services: opts.services
           simulation: true
           processors: newState
@@ -85,20 +85,10 @@ class Processors extends BaseComponent
             addedState.processors[procName] =
               id: procData.FunctionArn
 
-          modifiedTarget = extend true, opts.target, addedState
+          modifiedTarget = extend true, currentState, addedState
           done null, modifiedTarget
 
     ]
-
-  update: (path, oldDefs, newDefs, opts) ->
-    console.log "UPDATING PROCESSOR", path[0], oldDefs, newDefs
-    @state[path[0]] = newDefs
-    callback null
-
-  delete: (path, oldDefs, opts) ->
-    console.log "REMOVING PROCESSOR", path[0], oldDefs
-    delete @state[path[0]]
-    callback null
 
   handleInvoke: (state, opts, req, res) =>
     environment = opts.environment || 'development'

@@ -69,9 +69,7 @@ class BaseComponent
 
     differences = Differ.diff currentState, newState
     @resolveState currentState, newState, differences, opts, (err, finalState) =>
-      if opts.updatedState
-        @saveState opts.updatedState
-      callback err, opts.updatedState
+      callback err
 
   clearState: (path=[]) ->
     state = @loadState()
@@ -107,16 +105,16 @@ class BaseComponent
     else
       state = newState
 
-    stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
+    stateFilePath = if @options?.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
     
-    cwd = @options.cwd || process.cwd()
+    cwd = @options?.cwd || process.cwd()
     resolved = nodePath.resolve cwd, stateFilePath
-    # console.log "SAVING STATE TO", @namespace, path, resolved, newState, path, state
+    console.log "SAVING STATE TO", @namespace, path, resolved, path, state
     fs.writeFileSync resolved, JSON.stringify(state, null, 2)
 
   loadState: (path=[]) ->
-    stateFilePath = if @options.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
-    cwd = @options.cwd || process.cwd()
+    stateFilePath = if @options?.simulation then SIMULATION_STATE_FILE_PATH else STATE_FILE_PATH
+    cwd = @options?.cwd || process.cwd()
     resolved = nodePath.resolve cwd, stateFilePath
     if fs.existsSync resolved
       contents = fs.readFileSync(resolved, 'utf8')
@@ -154,22 +152,25 @@ class BaseComponent
     @planResolution currentState, newState, diffs, opts, (err, plan) =>
       if err then console.log "GOT PLAN ERR", err
       @executePlan currentState, newState, diffs, plan, opts, (err, finalState, path) =>
-        @saveState finalState, path
         callback err, finalState
 
   executePlan: (currentState, newState, diffs, plan, opts, callback) ->    
-    finalState = opts.updatedState || {}
-    async.eachSeries plan, (item, nextItem) =>        
-      item.run (err, changedState={}, changePath=[]) ->
-        finalState = extend finalState, changedState
-        nextItem err
+    async.eachSeries plan, (item, nextItem) =>
+      try
+        console.log "RUNNING ITEM", item.source?.constructor.name
+        item.run currentState, (err, changedState={}) =>
+          console.log "EXECUTE RESULTS", err, changedState
+          changedState = extend true, currentState, changedState
+          @saveState changedState
+          nextItem err
+      catch e
+        nextItem e      
     , (err) =>
       if err
         console.log "CAUGHT ERR DURING ITEM", err
         return callback err
 
-      opts.updatedState = finalState
-      callback err, finalState
+      callback err
 
   executePlanInGroups: (currentState, newState, diffs, plan, opts, callback) ->    
     groups = {}
@@ -186,7 +187,6 @@ class BaseComponent
       else
         groups[group].plan.push item
 
-    finalState = opts.updatedState || {}
     async.forEachOf groups, (group, groupId, nextGroup) =>
       async.eachSeries group.plan, (item, nextItem) =>        
         item.run (err, changedState={}, changePath=[]) ->
@@ -201,10 +201,10 @@ class BaseComponent
         else
           nextGroup err
     , (err) ->
-      opts.updatedState = finalState
       callback err, finalState
 
   planResolution: (currentState, newState, diffs=[], opts, callback) ->
+    console.log "PLAN RESOLUTION", @namespace, handleDiffs?
     plan = []
     opts.fullState = @loadState()
     

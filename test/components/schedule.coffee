@@ -37,5 +37,5 @@ test 'schedule', (suite) ->
     component.setState {}, newState, opts, (err, state) =>
       state = component.loadState()
       cleanup () ->
-        suite.notEqual state.schedule.everyMinute?.id, undefined, 'should have created a schedule'
+        suite.notEqual state.schedule?.everyMinute?.id, undefined, 'should have created a schedule'
         suite.end()

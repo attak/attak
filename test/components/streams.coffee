@@ -3,6 +3,7 @@ tape = require 'tape'
 tapes = require 'tapes'
 async = require 'async'
 attak = require '../../'
+ATTAK = require '../../lib/attak'
 dotenv = require 'dotenv'
 extend = require 'extend'
 Differ = require 'deep-diff'
@@ -19,24 +20,23 @@ test 'streams', (suite) ->
 
   suite.test 'processor creation', (suite) ->
     state =
-      'streams-test-first-second':
-        from: 'first'
-        to: 'second'
+      name: 'streams-test'
+      processors:
+        first: () -> null
+        second: () -> null
+      streams:
+        'streams-test-first-second':
+          from: 'first'
+          to: 'second'
 
-    opts =
-      target:
-        name: 'streams-test'
-        processors:
-          first: () -> null
-          second: () -> null
-        streams: state
+    component = new ATTAK
+      topology: state
 
-    component = new Streams
-
-    TestUtils.setupComponentTest {}, state, component, opts, (err, {opts, manager, oldState, newState}, cleanup) =>
+    TestUtils.setupComponentTest {}, state, component, {}, (err, {opts, manager, oldState, newState}, cleanup) =>
       component.setState {}, newState, opts, (err, state) =>
         cleanup () ->
-          suite.equal newState?['streams-test-first-second']?.id,
+          console.log "FINAL STATE IS", err, state
+          suite.equal state?['streams-test-first-second']?.id,
             'arn:aws:kinesis:us-east-1:133713371337:stream/streams-test-first-second',
             'should have recorded the new stream\'s ARN as its ID'
 
