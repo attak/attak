@@ -155,16 +155,18 @@ class BaseComponent
         callback err, finalState
 
   executePlan: (currentState, newState, diffs, plan, opts, callback) ->    
+    console.log "EXECUTE PLAN", @constructor.name
     async.eachSeries plan, (item, nextItem) =>
       try
-        console.log "RUNNING ITEM", item.source?.constructor.name
+        console.log "RUNNING ITEM", item.source?.constructor.name, item.msg
         item.run currentState, (err, changedState={}) =>
-          console.log "EXECUTE RESULTS", err, changedState
+          console.log "EXECUTE RESULTS", err, item.source?.constructor.name, changedState
           changedState = extend true, currentState, changedState
           @saveState changedState
           nextItem err
-      catch e
-        nextItem e      
+      catch err
+        console.log "CAUGHT EXCEPTION", err
+        nextItem err
     , (err) =>
       if err
         console.log "CAUGHT ERR DURING ITEM", err
@@ -187,8 +189,8 @@ class BaseComponent
       else
         groups[group].plan.push item
 
-    async.forEachOf groups, (group, groupId, nextGroup) =>
-      async.eachSeries group.plan, (item, nextItem) =>        
+    async.forEachOfSeries groups, (group, groupId, nextGroup) =>
+      async.eachSeries group.plan, (item, nextItem) =>
         item.run (err, changedState={}, changePath=[]) ->
           finalState = extend finalState, changedState
           nextItem err
@@ -227,7 +229,7 @@ class BaseComponent
         callback err, plan
   
   planComponentResolutions: (currentState, newState, diffs, opts, callback) ->
-    console.log "PLAN COMPONENT RESOLUTION", diffs
+    console.log "PLAN COMPONENT RESOLUTION", @constructor.name, diffs
     plan = []
     async.eachSeries diffs, (diff, nextDiff) =>
       diffPlan = @handleDiff diff, opts
@@ -251,6 +253,9 @@ class BaseComponent
     
     if @handleDiffs
       plan = @handleDiffs currentState, newState, diffs, opts
+      for planItem in plan
+        planItem.source = @
+
       async.each diffs, (diff, next) =>
         fromNamespace = opts.fromNamespace || @namespace
         fullPath = [(diff.path || [])...]
