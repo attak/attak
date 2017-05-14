@@ -36,12 +36,16 @@ class API extends BaseComponent
           "GET /:apiVersion/functions/:functionName/policy": @handleGetPolicy
           "POST /:apiVersion/functions/:functionName/policy": @handlePostPolicy
 
+      'ATTAK:API':
+        handlers:
+          'ALL /*': @handleRequest
+
   create: (path, newDefs, opts) ->
     [
       {
         msg: 'Create new API'
         run: (state, done) ->
-          console.log "CREATING NEW API", state
+          console.log "CREATING NEW API", path, newDefs, state
           [component, args...] = path
           if component is 'api'
             [property, val] = args
@@ -49,11 +53,14 @@ class API extends BaseComponent
               when 'handler'
                 gatewayOpts =
                   name: "#{state.name}-#{opts.environment || 'development'}"
-                  handler: val
+                  handler: newDefs
 
+                console.log "SETUP CONFIG", gatewayOpts
                 AWSUtils.setupGateway gatewayOpts, opts, (err, results) ->
                   console.log "GATEWAY RESULTS", err, results
                   state.api = extend true, state.api,
+                    name: gatewayOpts.name
+                    handler: newDefs
                     resources:
                       root: results.root
                       proxy: results.proxy
@@ -72,7 +79,7 @@ class API extends BaseComponent
     [
       {
         msg: 'Remove API'
-        run: (done) ->
+        run: (state, done) ->
           console.log "REMOVING API", path[0], oldDefs
           done()
       }
@@ -97,7 +104,7 @@ class API extends BaseComponent
           gateway: gateway
 
       res.json gateway
-      done null, state
+      done null
 
   handleGetRestApis: (state, opts, req, res) ->
     res.json
@@ -147,9 +154,9 @@ class API extends BaseComponent
 
 
   handleGetMethod: (state, opts, req, res) ->
-    console.log "HANDLE handleGetMethod", req.params.parentResource in [state.api.methods?.proxy?.id, state.api.methods?.root?.id] 
+    console.log "HANDLE handleGetMethod", req.params.parentResource in [state.api?.methods?.proxy?.id, state.api?.methods?.root?.id]
 
-    if req.params.parentResource in [state.api.methods?.proxy?.id, state.api.methods?.root?.id]
+    if req.params.parentResource in [state.api?.methods?.proxy?.id, state.api?.methods?.root?.id]
 
       res.json
         'httpMethod': 'ANY'
@@ -244,5 +251,36 @@ class API extends BaseComponent
 
   handlePostStages: (state, opts, req, res) ->
     res.json ok: true
+
+  handleRequest: (state, opts, req, res) ->
+    console.log "HANDLE", req.method, req.url, req.query, req.body, opts.services['AWS:Lambda'].endpoint
+    console.log "STATE IS", state
+
+    awsLambda = new AWS.Lambda
+      apiVersion: '2015-03-31'
+      endpoint: opts.services['AWS:Lambda'].endpoint
+
+    event =
+      path: req.url
+      body: req.body
+      headers: req.headers
+      httpMethod: req.method
+      queryStringParameters: req.query
+
+    params = 
+      Payload: new Buffer JSON.stringify(event)
+      FunctionName: "#{state.api.handler}-#{opts.environment || 'development'}"
+      InvocationType: 'Event'
+
+    awsLambda.invoke params, (err, results) ->
+      console.log "INVOKE RESULTS", err, results
+
+      if err
+        res.status 400
+        res.header 'x-amzn-errortype', 'ResourceNotFoundException'
+        res.json
+          message: "Method not found"
+      else
+        res.send results.Payload
 
 module.exports = API
