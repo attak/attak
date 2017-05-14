@@ -12,11 +12,7 @@ BaseComponent = require './base_component'
 class Streams extends BaseComponent
   namespace: 'streams'
   platforms: ['AWS']
-  dependencies: [
-    'name'
-    'processors/:processorName'
-  ]
-
+  dependencies: ['name', 'processors']
   structure:
     ':streamName':
       id: 'string'
@@ -32,6 +28,9 @@ class Streams extends BaseComponent
       'AWS:Lambda':
         handlers:
           "POST /:apiVerison/event-source-mappings": @handleCreateEventSourceMapping
+      'AWS:IAM':
+        handlers:
+          "POST /": @handleGetUser
 
   init: (callback) ->
     callback()
@@ -57,7 +56,7 @@ class Streams extends BaseComponent
             async.eachSeries streams, ([streamName, streamDefs], nextStream) ->
               @createStream state, streamName, defs, opts, (err, streamData, association) ->
                 if err then return done err
-                state.streams[streamData.StreamDescription.StreamName].id = streamData.StreamDescription.StreamARN
+                state.streams[streamData.name].id = streamData.arn
                 nextStream err
             , (err) ->
               done err, state
@@ -66,8 +65,8 @@ class Streams extends BaseComponent
             @createStream state, streamName, defs, opts, (err, streamData, association) ->
               if err then return done err
               extendedState = extend state,
-                "#{streamData.StreamDescription.StreamName}":
-                  id: streamData.StreamDescription.StreamARN
+                "#{streamData.name}":
+                  id: streamData.arn
               done err, extendedState
       }
     ]
@@ -84,18 +83,31 @@ class Streams extends BaseComponent
 
   createStream: (state, streamName, defs, opts, callback) ->
     console.log "ACTUAL CREATE STREAM", streamName, defs, state
-    AWSUtils.createStream opts, state.name, streamName, (err, results) ->
-      AWSUtils.describeStream opts, state.name, streamName, (err, streamResults) ->
+    region = opts.region || 'us-east-1'
+
+    iam = new AWS.IAM
+      region: region
+      endpoint: opts.services['AWS:IAM'].endpoint
+
+    iam.getUser (err, user) ->
+      console.log "USER RESULTS", err, user, state
+      AWSUtils.createStream opts, state.name, streamName, (err, results) ->
         if err then return callback err
-        console.log "DESCRIBE STREAM DONE", err, streamResults, state
+
+        account = user.User.UserId
+
+        streamArn = "arn:aws:kinesis:#{region}:#{account}:stream/#{streamName}"
+
         targetProcessor = extend true, {}, state.processors[defs.to]
         targetProcessor.name = defs.to
 
         streamDefs =
-          id: streamResults.StreamDescription.StreamARN
+          id: streamArn
+          arn: streamArn
+          name: streamName
 
         AWSUtils.associateStream state, streamDefs, targetProcessor, opts, (err, associationResults) ->
-          callback err, streamResults, associationResults
+          callback err, streamDefs, associationResults
 
   invokeProcessor: (processorName, data, state, opts, callback) ->
     context =
@@ -120,10 +132,11 @@ class Streams extends BaseComponent
     targetId = req.headers['x-amz-target']
     [version, type] = targetId.split '.'
 
+    console.log "HANDLE KINESIS PUT", type, req.body
     if state.name is undefined and state.processors
       for procName, procDefs of state.processors
         [thisStateName, otherProc] = req.body.StreamName.split("-#{procName}-")
-        console.log "LOOKING AT", procName, thisStateName, otherProc, state.processors?[otherProc]?
+        console.log "LOOKING AT", req.body.StreamName, procName, thisStateName, otherProc, state.processors?[otherProc]?
         if otherProc and state.processors?[otherProc] isnt undefined
           stateName = thisStateName
           break
@@ -138,8 +151,6 @@ class Streams extends BaseComponent
         streamDefs = [streamName, stream]
       else
         console.log "NO MATCH", req.body.StreamName, thisStream, stream
-
-    console.log "HANDLE KINESIS PUT", type, streamDefs, req.body
 
     switch type
       when 'CreateStream'
@@ -160,6 +171,8 @@ class Streams extends BaseComponent
           newStreamState =
             id: "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
 
+          console.log "PROCESSORS ARE", Object.keys(state.processors || {})
+
           for procName, procDefs of (state.processors || {})
             [stateName, otherProc] = req.body.StreamName.split("#{procName}-")
             if otherProc and state.processors?[otherProc] isnt undefined
@@ -169,9 +182,8 @@ class Streams extends BaseComponent
 
           state.streams[req.body.StreamName] = newStreamState
 
-          console.log "AFTER STREAM CREATE", state.streams
+          console.log "AFTER STREAM CREATE", state
           res.json ok: true
-          done null, state
 
       when 'DescribeStream'
         if streamDefs
@@ -219,5 +231,24 @@ class Streams extends BaseComponent
       res.json extend mapping,
         UUID: uuid.v1()
         LastModified: moment().format()
+
+  handleGetUser: (state, opts, req, res) ->
+    res.send """
+      <GetUserResponse xmlns="https://iam.amazonaws.com/doc/2010-05-08/">
+        <GetUserResult>
+          <User>
+            <UserId>133713371337</UserId>
+            <Path>/division_abc/subdivision_xyz/</Path>
+            <UserName>Bob</UserName>
+            <Arn>arn:aws:iam::123456789012:user/division_abc/subdivision_xyz/Bob</Arn>
+            <CreateDate>2013-10-02T17:01:44Z</CreateDate>
+            <PasswordLastUsed>2014-10-10T14:37:51Z</PasswordLastUsed>
+          </User>
+        </GetUserResult>
+        <ResponseMetadata>
+          <RequestId>7a62c49f-347e-4fc4-9331-6e8eEXAMPLE</RequestId>
+        </ResponseMetadata>
+      </GetUserResponse>
+    """
 
 module.exports = Streams
