@@ -125,9 +125,12 @@ SimulationUtils =
       services = app.getSimulationServices()
 
       manager = new ServiceManager
-      manager.setup topology, {}, services, (err, services) ->
+        app: app
+
+      manager.setup topology, opts, services, (err, services) ->
+        opts.services = services
         app.getState (err, state) ->
-          app.setState state, topology, {services}, (err, results) ->
+          app.setState state, topology, opts, (err, results) ->
             if err then return callback err
             async.forEachOf input, (data, processorName, nextProcessor) ->
               lambda = new AWS.Lambda
