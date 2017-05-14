@@ -488,12 +488,11 @@ AWSUtils =
       callback err, scheduleId
 
   setupGateway: (config, opts, callback) ->
-    log "SETUP GATEWAY", config
-
     region = opts.region || 'us-east-1'
     environment = opts.environment || 'development'
     functionName = "#{config.handler}-#{environment}"
 
+    log "SETUP GATEWAY", region, environment, functionName, config
     apiGateway = new AWS.APIGateway
       region: region
       endpoint: opts.services['AWS:APIGateway'].endpoint
@@ -762,7 +761,7 @@ AWSUtils =
           FunctionName: functionName
 
         lambda.getPolicy params, (err, results) ->
-          policy = JSON.parse(results.Policy)
+          policy = JSON.parse(results?.Policy || '{}')
           done err, {gateway, root, account, policy, proxy}
 
       ({gateway, root, account, policy, proxy}, done) ->
@@ -851,7 +850,7 @@ AWSUtils =
       if opts.simulate
         console.log "API RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
       else
-        console.log "API RUNNING AT http://localhost:24424"
+        console.log "API RUNNING AT #{opts.services['ATTAK:API'].endpoint}"
 
       callback err, results
 
