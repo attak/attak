@@ -203,6 +203,47 @@ class BaseComponent
     , (err) ->
       callback err, finalState
 
+  planChildResolutions: (currentState, newState, childDiffs, opts, callback) ->
+    console.log "PLAN CHILD RESOLUTION"
+    plan = []
+    asyncItems = {}
+    async.eachOfSeries childDiffs, (config, childName, nextChild) =>
+      child = config.child
+      
+      getPlan = (results..., done) ->
+        child.planResolution currentState, newState[childName], config.diffs, opts, (err, childPlan) ->
+          plan = plan.concat childPlan
+          done null, plan
+
+      if child.dependencies
+        asyncItems[config.child.namespace] = [child.dependencies..., getPlan]
+      else
+        asyncItems[config.child.namespace] = getPlan
+      
+      nextChild()
+    , (err) =>
+      async.auto asyncItems, (err) ->
+        console.log "DONE CHILD RESOLUTION", @constructor.name, err
+        callback err, plan
+  
+  planComponentResolutions: (currentState, newState, diffs, opts, callback) ->
+    console.log "PLAN COMPONENT RESOLUTION", diffs
+    plan = []
+    async.eachSeries diffs, (diff, nextDiff) =>
+      diffPlan = @handleDiff diff, opts
+      for item in diffPlan
+        item.source = @
+        item.group = item.group || opts.group
+      
+      fromNamespace = opts.fromNamespace || @namespace
+      fullPath = diff.path || []
+      @manager.notifyChange @namespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) ->
+        plan = [plan..., diffPlan...]
+        nextDiff()
+    , (err) =>
+      console.log "DONE COMPONENT RESOLUTION", @constructor.name, err
+      callback err, plan
+
   planResolution: (currentState, newState, diffs=[], opts, callback) ->
     console.log "PLAN RESOLUTION", @namespace, handleDiffs?
     plan = []
@@ -212,7 +253,7 @@ class BaseComponent
       plan = @handleDiffs currentState, newState, diffs, opts
       async.each diffs, (diff, next) =>
         fromNamespace = opts.fromNamespace || @namespace
-        fullPath = [fromNamespace, (diff.path || [])...]
+        fullPath = [(diff.path || [])...]
         @manager.notifyChange @namespace, fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
           plan = newPlan
           next()
@@ -222,25 +263,29 @@ class BaseComponent
       if diffs.length is 0
         return callback null, plan
 
-      async.eachSeries diffs, (diff, nextDiff) =>
-        if @children?[diff.path?[0]]
-          diffPlan = @children[diff.path].handleDiff diff, opts
-          for item in diffPlan
-            item.source = @children[diff.path]
+      childDiffs = {}
+      diffsForThis = []
+      for diff in diffs
+        childPath = diff.path?[0]
+        if childPath and @children?[childPath]
+          if childDiffs[childPath] is undefined
+            childDiffs[childPath] =
+              child: @children[childPath]
+              diffs: [diff]
+          else
+            childDiffs[childPath].diffs.push diff
         else
-          diffPlan = @handleDiff diff, opts
-          for item in diffPlan
-            item.source = @
-          
-        for item in diffPlan
-          item.group = item.group || opts.group
-        
-        fromNamespace = opts.fromNamespace || @namespace
-        fullPath = [fromNamespace, (diff.path || [])...]
-        @manager.notifyChange @namespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) ->
-          plan = [plan..., diffPlan...]
-          nextDiff()
-      , (err) ->
+          diffsForThis.push diff
+
+      async.waterfall [
+        (done) =>
+          @planChildResolutions currentState, newState, childDiffs, opts, done
+        (childPlans, done) =>
+          @planComponentResolutions currentState, newState, diffsForThis, opts, (err, componentPlans) ->
+            done err, childPlans, componentPlans
+      ], (err, childPlans, componentPlans) =>
+        plan = [plan..., childPlans..., componentPlans...]
+        console.log "FINAL PLAN", plan
         callback err, plan
 
   getSimulationServices: () ->
