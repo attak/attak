@@ -7,9 +7,9 @@ class IAM extends BaseService
   ]
 
   setup: (config, opts, callback) ->
-    console.log "SETUP IAM SERVICE"
+    @disableParsing = true
     @host = '127.0.0.1'
-    @port = opts.port || 143523
+    @port = opts.port || 14352
     @endpoint = "http://#{@host}:#{@port}"
     super arguments...
 
