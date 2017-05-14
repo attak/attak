@@ -9,6 +9,10 @@ class API extends BaseComponent
   namespace: 'api'
   platforms: ['AWS']
 
+  dependencies: [
+    'name'
+  ]
+
   simulation:
     services: ->
       'AWS:APIGateway':
@@ -74,7 +78,7 @@ class API extends BaseComponent
       }
     ]
 
-  handleCreateRestApis: (state, opts, req, res) ->
+  handleCreateRestApis: (state, opts, req, res, done) ->
     console.log "HANDLE CREATE REST API", req.url, req.body, req.headers
     allData = ""
     req.on 'data', (data) -> allData += data.toString()
@@ -87,46 +91,65 @@ class API extends BaseComponent
         name: apiDefs.name
 
       console.log "SENDING BACK GATEWAY DEFS", gateway
-      opts.target.api.gateway = gateway
+      
+      state = extend true, state,
+        api:
+          gateway: gateway
+
       res.json gateway
+      done null, state
 
   handleGetRestApis: (state, opts, req, res) ->
     res.json
-      items: []
+      item: []
 
-  handleCreateResource: (state, opts, req, res) ->
+  handleCreateResource: (state, opts, req, res, done) ->
     allData = ""
     req.on 'data', (data) -> allData += data.toString()
     req.on 'end', ->
       resource = JSON.parse allData
       console.log "HANDLE CREATE RESOURCE", req.params, resource
 
-      guid = uuid.v1()
+      if resource.pathPart.indexOf('proxy') isnt -1
+        resourceType = 'proxy'
+      else
+        resourceType = 'root'
 
-      if opts.target.api.resources is undefined
-        opts.target.api.resources =
-          root:
-            id: uuid.v1()
-      opts.target.api.resources.proxy =
-        id: guid
+      state = extend true, state,
+        api:
+          resources:
+            "#{resourceType}":
+              id: uuid.v1()
 
-      res.json opts.target.api.resources.proxy
+      res.json state.api.resources.proxy
+      done null, state
 
-  handleGetResources: (state, opts, req, res) ->
-    console.log 'HANDLE GET RESOURCES', req.params, opts.target
+  handleGetResources: (state, opts, req, res, done) ->
+    console.log 'HANDLE GET RESOURCES', req.params
   
+    guid = uuid.v1()
+    if state.api?.resources?.root?.id is undefined
+      state = extend true, state,
+        api:
+          resources:
+            root:
+              id: guid
+
     res.json
       item: [{
-        id: 'jkwkjmwd2d'
+        id: guid
         path: '/'
         resourceMethods:
           ANY: {}
       }]
 
-  handleGetMethod: (state, opts, req, res) ->
-    console.log "HANDLE handleGetMethod", req.params.parentResource in [opts.target.api.methods?.proxy?.id, opts.target.api.methods?.root?.id] 
+    done null, state
 
-    if req.params.parentResource in [opts.target.api.methods?.proxy?.id, opts.target.api.methods?.root?.id]
+
+  handleGetMethod: (state, opts, req, res) ->
+    console.log "HANDLE handleGetMethod", req.params.parentResource in [state.api.methods?.proxy?.id, state.api.methods?.root?.id] 
+
+    if req.params.parentResource in [state.api.methods?.proxy?.id, state.api.methods?.root?.id]
 
       res.json
         'httpMethod': 'ANY'
@@ -154,7 +177,7 @@ class API extends BaseComponent
         'methodIntegration':
           'type': 'AWS_PROXY'
           'httpMethod': 'POST'
-          'uri': "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:133713371337:function:#{opts.target.api.handler}-#{opts.environment || 'development'}/invocations"
+          'uri': "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:133713371337:function:#{state.api.handler}-#{opts.environment || 'development'}/invocations"
           'passthroughBehavior': 'WHEN_NO_MATCH'
 
     else
@@ -189,10 +212,11 @@ class API extends BaseComponent
     res.json ok: true
 
   handleGetPolicy: (state, opts, req, res) ->
+    console.log "HANDLE GET POLICY", req.params
     environment = opts.environment || 'development'
     processorName = req.params.functionName.split(environment)[0]
     
-    processor = opts.target.processors[processorName] || {}
+    processor = state.processors?[processorName] || {}
 
     policy =
       Id: "default"
