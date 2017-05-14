@@ -6,15 +6,21 @@ BaseComponent = require '../components/base_component'
 
 class BaseService
 
-  constructor: (@options) ->
+  constructor: (@manager) ->
     @guid = uuid.v1()
     
   setup: (config, opts, callback) ->
     @app = express()
-    @app.use bodyParser.json
-      type: '*/*'
-    @app.use bodyParser.urlencoded
-      extended: false
+    
+    @app.use (req, res, next) =>
+      console.log "SERVICE REQ #{@constructor.name} #{req.method} #{req.url}", req.body
+      next()
+
+    unless @disableParsing
+      @app.use bodyParser.json
+        type: '*/*'
+      @app.use bodyParser.urlencoded
+        extended: false
 
     @app.options '*', (req, res) ->
       headers =
@@ -33,18 +39,18 @@ class BaseService
       methods = methods.split ','
 
       for method in methods
-        @app[method.toLowerCase()] fullPath, (req, res, next) ->
-          state = BaseComponent::loadState()
+        @app[method.toLowerCase()] fullPath, (req, res, next) =>
+          state = @manager.app.loadState()
           handler state, opts, req, res, (err, changedState) ->
             console.log "BASE SERVICE HANDLER RESULTS", err, changedState
-            BaseComponent::saveState changedState
             next err
     , =>
       @app.use (req, res, next) =>
-        console.log "UNHANDLED #{@constructor.name} API REQUEST", req.method, req.url, req.body
+        console.log "UNHANDLED #{@constructor.name} REQUEST", req.method, req.url, req.body
         next()
 
     @server = @app.listen @port, () =>
+      console.log "#{@constructor.name} LISTENING AT", @endpoint
       callback null, @endpoint
 
   stop: (callback) ->
