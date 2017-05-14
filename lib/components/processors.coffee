@@ -19,6 +19,7 @@ class Processors extends BaseComponent
       'AWS:Lambda':
         handlers:
           "POST /:apiVerison/functions/:functionName/invoke-async": @handleInvoke
+          "POST /:apiVerison/functions/:functionName/invocations": @handleInvoke
           "GET /:apiVerison/functions/:functionName": @handleGetFunction
           "POST /:apiVerison/functions": @handleCreateFunction
           "PUT /:apiVerison/functions": @handleCreateFunction
@@ -69,13 +70,15 @@ class Processors extends BaseComponent
     [
       msg: 'resolve processor state'
       run: (state, done) ->
+        console.log "RUNNING PROCESSOR CREATE"
         opts = extend opts,
-          name: currentState.name
+          name: state.name
           services: opts.services
           simulation: true
           processors: newState
 
         LambdaUtils.deployProcessors opts, (err, procDatas) ->
+          console.log "DEPLOYMENT FINISHED", err
           addedState =
             processors: {}
           
@@ -85,8 +88,9 @@ class Processors extends BaseComponent
             addedState.processors[procName] =
               id: procData.FunctionArn
 
-          modifiedTarget = extend true, currentState, addedState
-          done null, modifiedTarget
+          state = extend true, state, addedState
+          console.log "STATE AFTER PROCESSORS", state
+          done null, state
 
     ]
 
@@ -109,7 +113,8 @@ class Processors extends BaseComponent
       success: (results) -> callback null, results
       state: state
 
-    processor = TopologyUtils.getProcessor opts, state, processorName
+    topology = TopologyUtils.loadTopology opts
+    processor = TopologyUtils.getProcessor opts, topology, processorName
     handler = AttakProc.handler processorName, state, processor, opts
     handler data, context, (err, results) ->
       callback err, results
