@@ -7,6 +7,7 @@ TestUtils =
     services = component.getSimulationServices()
 
     manager = new ServiceManager
+      app: component
     manager.setup oldState, testOpts, services, (err, services) ->
       opts =
         role: 'testrole'
