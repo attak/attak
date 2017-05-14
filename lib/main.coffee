@@ -42,39 +42,6 @@ Attak =
       .catch (err) ->
         console.log "CAUGHT ERROR", err
 
-  simulate: (program, callback) ->
-    topology = TopologyUtils.loadTopology program
-
-    program.startTime = new Date
-    program.environment = program.environment || 'development'
-
-    if program.input
-      input = program.input
-    else
-      inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
-      if fs.existsSync inputPath
-        input = require inputPath
-      else
-        input = undefined
-
-    if program.id
-      CommUtils.connect program, (socket, wrtc) ->
-        wrtc.emit 'topology',
-          topology: topology
-
-        emitter = wrtc.emit
-        wrtc.reconnect = (wrtc) ->
-          emitter = wrtc.emit
-
-        opts =
-          report: () ->
-            emitter? arguments...
-
-        SimulationUtils.runSimulations program, topology, input, opts, callback
-
-    else
-      SimulationUtils.runSimulations program, topology, input, {}, callback
-
   trigger: (program, callback) ->
     topology = require (program.cwd || process.cwd())
     inputPath = nodePath.resolve (program.cwd || process.cwd()), program.inputFile
