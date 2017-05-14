@@ -847,7 +847,12 @@ AWSUtils =
       log "CREATE GATEWAY RESULTS", err, results
       if err
         console.log "GOT ERROR", err
-      console.log "API RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
+
+      if opts.simulate
+        console.log "API RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
+      else
+        console.log "API RUNNING AT http://localhost:24424"
+
       callback err, results
 
   getStreamName: (topologyName, sourceProcessor, destProcessor) ->
