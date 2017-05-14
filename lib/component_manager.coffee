@@ -26,10 +26,6 @@ class ComponentManager
       changeUrl = "/#{component.namespace}/#{urlPath}"
       @router.all subscribeTo, @listeners[component.guid]
 
-  getNamespaces: (structure, namespace='', namespaces=[]) ->
-    for key, val of structure
-      namespace += "#{}/"
-
   remove: (guid) ->
     delete @components[guid]
 
