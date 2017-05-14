@@ -26,7 +26,7 @@ test 'processors', (suite) ->
         component.getState (err, state) ->
           cleanup () ->
             suite.equal state?.processors?.hello?.id,
-              'arn:aws:lambda:us-east-1:133713371337:function:undefined',
+              'arn:aws:lambda:us-east-1:133713371337:function:hello-development',
               'should have recorded the new processor\'s ARN as its ID'
 
             suite.end()

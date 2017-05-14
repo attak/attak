@@ -115,10 +115,13 @@ class Processors extends BaseComponent
       callback err, results
 
   handleCreateFunction: (state, opts, req, res) ->
-    console.log "CREATE FUNCTION", req.method, req.url, req.params, req.body, req.headers
-    name = req.params.functionName
-    req.on 'data', -> null
+    allData = ""
+    req.on 'data', (data) -> allData += data.toString()
     req.on 'end', ->
+      data = JSON.parse allData
+
+      console.log "CREATE FUNCTION", req.method, req.url, req.params, data, req.headers
+      name = data.FunctionName
       res.json
         FunctionName: name
         FunctionArn: "arn:aws:lambda:us-east-1:133713371337:function:#{name}"
@@ -139,9 +142,9 @@ class Processors extends BaseComponent
         code: 'ResourceNotFoundException'
     else
       res.json
-        Configuration: 
-          FunctionName: 'lamprey-production'
-          FunctionArn: 'arn:aws:lambda:us-east-1:133713371337:function:lamprey-production'
+        Configuration:
+          FunctionName: name
+          FunctionArn: "arn:aws:lambda:us-east-1:133713371337:function:#{name}"
           Runtime: 'nodejs4.3'
           Role: 'arn:aws:iam::133713371337:role/lambda'
           Handler: 'attak_runner.handler'
