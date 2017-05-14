@@ -55,7 +55,7 @@ class ATTAK extends BaseComponent
 
       next()
     , (err) =>
-      async.auto asyncItems, (err) ->
+      async.auto asyncItems, 1, (err) ->
         console.log "ALL DONE SETTING STATE", err
         callback err, currentState
 
