@@ -1,3 +1,4 @@
+API = require './services/api'
 IAM = require './services/iam'
 async = require 'async'
 extend = require 'extend'
@@ -9,14 +10,18 @@ CloudWatchEvents = require './services/cloudwatch_events'
 
 class ServiceManager
 
+  constructor: (@options) ->
+    @app = @options.app
+
   setup: (state, opts, configs, callback) ->
     @services = [
-      new IAM
-      new AWSAPI
-      new Streams
-      new Gateway
-      new StaticHosting
-      new CloudWatchEvents
+      new API @
+      new IAM @
+      new AWSAPI @
+      new Streams @
+      new Gateway @
+      new StaticHosting @
+      new CloudWatchEvents @
     ]
 
     @handlers = {}
@@ -40,9 +45,10 @@ class ServiceManager
         return next()
 
       settingUp[service.guid] = service
-      setupOpts = extend opts, config
+      setupOpts = extend true, opts, config
+      setupOpts.services = @handlers
 
-      service.setup config, opts, (err, endpoint) =>
+      service.setup config, setupOpts, (err, endpoint) =>
         service = @handlers[serviceKey]
         service.isSetup = true
         settingUp[service.guid] = undefined
