@@ -8,7 +8,13 @@ class Name extends BaseComponent
 
   create: (path, newDefs, opts) ->
     # Creating a new name is a noop
-    []
+    [
+      msg: 'setup name'
+      run: (state, done) ->
+        console.log "CREATE NAME"
+        state.name = newDefs
+        done null, state
+    ]
 
   delete: (path, oldDefs, callback) ->
     [
@@ -16,7 +22,8 @@ class Name extends BaseComponent
         msg: 'Remove name'
         run: (state, done) ->
           console.log "REMOVING NAME", path[0], oldDefs
-          done()
+          delete state.name
+          done null, state
       }
     ]
 
