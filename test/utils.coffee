@@ -24,7 +24,7 @@ TestUtils =
 
   setupTest: (state, topology, testOpts={}, callback) ->
     endState = TopologyUtils.loadTopology {topology}
-
+    testOpts.topology = topology
     app = new ATTAK
       topology: topology
       simulation: true
