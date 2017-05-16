@@ -857,6 +857,9 @@ AWSUtils =
   getStreamName: (topologyName, sourceProcessor, destProcessor) ->
     "#{topologyName}-#{sourceProcessor}-#{destProcessor}"
 
+  getFunctionName: (topologyName, processorName, environment) ->
+    "#{topologyName}-#{processorName}-#{environment}"
+
   createStream: (opts, topology, streamName, callback) ->
     streamOpts =
       ShardCount: opts?.shards || 1
@@ -908,18 +911,15 @@ AWSUtils =
     kinesis.putRecord params, (err, data) ->
       callback err, data
 
-  triggerProcessor: (program, processor, data, callback) ->
+  triggerProcessor: (processorName, data, opts, callback) ->
 
     lambda = new AWS.Lambda
-    lambda.config.region = program.region
-    lambda.config.endpoint = 'lambda.us-east-1.amazonaws.com'
-    lambda.region = program.region
-    lambda.endpoint = 'lambda.us-east-1.amazonaws.com'
+      region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:Lambda'].endpoint
 
     params = 
-      LogType: 'Tail'
       Payload: new Buffer JSON.stringify(data)
-      FunctionName: "#{processor}-#{program.environment}"
+      FunctionName: "#{processorName}-#{opts.environment || 'development'}"
       InvocationType: 'Event'
       # Qualifier: '1'
       # ClientContext: 'MyApp'

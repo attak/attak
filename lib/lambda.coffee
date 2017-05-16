@@ -8,7 +8,7 @@ extend = require 'extend'
 lambda = require 'node-lambda'
 NodeZip = require 'node-zip'
 nodePath = require 'path'
-ProgressBar = require 'progress'
+AWSUtils = require './aws'
 
 DEBUG = true
 log = -> if DEBUG then console.log arguments...
@@ -31,16 +31,13 @@ LambdaUtils =
     , (err) ->
       callback err, lambdas
 
-  deployProcessors: (opts, callback) ->
+  deployProcessors: (state, opts, callback) ->
     log "Deploying processors"
     retval = {}
     opts.region = opts.region || 'us-east-1'
 
     regions = opts.region.split(',')
     environment = opts.environment || 'development'
-
-    bar = new ProgressBar 'uploading :bar', 
-      total: Object.keys(opts.processors).length
 
     runnerPath = require('path').resolve (opts.cwd || process.cwd()), './attak_runner.js'
 
@@ -76,7 +73,7 @@ LambdaUtils =
       log "Deploying #{Object.keys(opts.processors).length} processors"
 
       async.forEachOf opts.processors, (processor, name, nextProcessor) ->
-        functionName = "#{name}-#{opts.environment || 'development'}"
+        functionName = AWSUtils.getFunctionName state.name, name, environment
 
         params = 
           FunctionName: functionName
@@ -131,7 +128,6 @@ LambdaUtils =
                 nextRegion err
         
         , (err, results) ->
-          bar.tick()
           nextProcessor err
       , (err) ->
         fs.unlink runnerPath, ->

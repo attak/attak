@@ -14,7 +14,7 @@ test 'processors', (test) ->
 
   TestUtils.setupTest {}, topology, {}, (err, {opts, manager, state, cleanup}) =>
     test.equal state?.processors?.hello?.id,
-      'arn:aws:lambda:us-east-1:133713371337:function:hello-development',
+      'arn:aws:lambda:us-east-1:133713371337:function:processors-test-hello-development',
       'should have recorded the new processor\'s ARN as its ID'
     
     AWSUtils.triggerProcessor 'hello', {test: 'works'}, opts, (err, results) ->

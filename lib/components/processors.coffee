@@ -77,14 +77,15 @@ class Processors extends BaseComponent
           simulation: true
           processors: newState
 
-        LambdaUtils.deployProcessors opts, (err, procDatas) ->
+        LambdaUtils.deployProcessors state, opts, (err, procDatas) ->
           console.log "DEPLOYMENT FINISHED", err
           addedState =
             processors: {}
           
           for funcName, procData of procDatas
             environment = opts.environment || 'development'
-            procName = funcName.split("-#{environment}")[0]
+            extendedProcName = funcName.split("-#{environment}")[0]
+            procName = extendedProcName.split("#{state.name}-")[1]
             addedState.processors[procName] =
               id: procData.FunctionArn
 
