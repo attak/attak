@@ -82,7 +82,7 @@ LambdaUtils =
           FunctionName: functionName
           Code: ZipFile: buffer
           Handler: 'attak_runner.handler'
-          Role: opts.role || process.env.AWS_ROLE_ARN || process.env.AWS_ROLE
+          Role: opts.role || process.env.AWS_ROLE_ARN || process.env.AWS_ROLE || 'missing'
           Runtime: opts.runtime || process.env.AWS_RUNTIME || 'nodejs4.3'
           Description: opts.description
           MemorySize: opts.memorySize || process.env.AWS_MEMORY_SIZE || 128
