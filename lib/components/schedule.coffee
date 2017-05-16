@@ -32,7 +32,11 @@ class Schedule extends BaseComponent
           [namespace, args...] = path
           [scheduleName, scheduleArgs...] = args
 
-          AWSUtils.setupSchedule opts.target, opts, (err, results) ->
+          state = extend true, state,
+            schedule:
+              "#{scheduleName}": newDefs
+
+          AWSUtils.setupSchedule state, opts, (err, results) ->
             state = extend true, state,
               schedule:
                 "#{scheduleName}":
@@ -53,14 +57,12 @@ class Schedule extends BaseComponent
 
   handlePost: (state, opts, req, res) ->
     target = req.headers['x-amz-target'].split('AWSEvents.')[1]
-    console.log "HANDLE POST", target, req.body, req.headers, opts.target
+    console.log "HANDLE POST", target, req.body, req.headers, state
     switch target
       when 'PutRule'
 
-        eventName = req.body.Name.split("#{opts.target.name}-")[1]
+        eventName = req.body.Name.split("#{state.name}-")[1]
         arn = "arn:aws:events:us-east-1:133713371337:rule/#{eventName}"
-        console.log "GOT EVENT NAME", eventName, arn
-        opts.target.schedule[eventName].id = arn
 
         res.json
           RuleArn: arn
