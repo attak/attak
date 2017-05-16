@@ -1,6 +1,10 @@
+ATTAK = require '../lib/attak'
+dotenv = require 'dotenv'
 extend = require 'extend'
 TopologyUtils = require '../lib/topology'
 ServiceManager = require '../lib/simulation/service_manager'
+
+dotenv.load()
 
 TestUtils = 
   setupComponentTest: (oldState, newState, component, testOpts={}, callback) ->
@@ -18,21 +22,19 @@ TestUtils =
         manager.stopAll ->
           finish()
 
-  setupTest: (oldState, newState, app, testOpts={}, callback) ->
-    startState = TopologyUtils.loadTopology oldState
-    endState = TopologyUtils.loadTopology newState
+  setupTest: (state, topology, testOpts={}, callback) ->
+    endState = TopologyUtils.loadTopology {topology}
 
     app = new ATTAK
       topology: topology
       simulation: true
       environment: testOpts.environment || 'development'
 
-    app.clearState()
-    app.setup ->
-      services = app.getSimulationServices()
+    TestUtils.setupComponentTest state, endState, app, testOpts, (err, resp, cleanup) ->
+      app.setState state, endState, testOpts, (err, state) ->
+        resp.state = app.loadState()
+        cleanup ->
+          callback err, resp
 
-      manager = new ServiceManager
-      manager.setup topology, {}, services, testOpts, (err, services) ->
-        app.setState startState, endState, {services}, (err, results) ->
 
 module.exports = TestUtils
