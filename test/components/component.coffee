@@ -30,11 +30,12 @@ test 'components', (test) ->
 
   component = new ParentComponent
   services = component.getSimulationServices()
-  test.equal services?['other:parent:service']?.some, 'config'  
   test.notEqual services, undefined, 'failed to find any services'
-  test.notEqual services['parent:service'], undefined, 'failed to find top level component services'
-  test.notEqual services['other:parent:service'], undefined, 'failed to find top level component services'
-  test.notEqual services['child:service'], undefined, 'failed to find child services'
+  test.notEqual services['parent:service'], undefined, 'should find top level component services'
+  test.notEqual services['child:service'], undefined, 'should find child services'
+  
+  test.notEqual services['other:parent:service'], undefined, 'should find top level component services'
+  test.equal services?['other:parent:service']?.some, 'config', 'should resolve parent services'
 
   test.doesNotThrow =>
     component.getState (err, results) ->
