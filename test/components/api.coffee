@@ -1,7 +1,7 @@
 test = require 'tape'
 TestUtils = require '../utils'
 
-test 'streams', (test) ->
+test 'api', (test) ->
   topology =
     name: 'api-test'
     api: 'endpoint'

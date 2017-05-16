@@ -1,7 +1,7 @@
 test = require 'tape'
 TestUtils = require '../utils'
 
-test 'streams', (test) ->
+test 'schedule', (test) ->
   topology =
     name: 'schedule-test'
     schedule:
