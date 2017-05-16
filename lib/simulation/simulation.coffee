@@ -129,25 +129,24 @@ SimulationUtils =
 
       manager.setup topology, opts, services, (err, services) ->
         opts.services = services
-        app.getState (err, state) ->
-          app.setState state, topology, opts, (err, results) ->
-            if err then return callback err
-            async.forEachOf input, (data, processorName, nextProcessor) ->
-              lambda = new AWS.Lambda
-                region: 'us-east-1'
-                endpoint: services['AWS:API']
+        app.setState state, topology, opts, (err, results) ->
+          if err then return callback err
+          async.forEachOf input, (data, processorName, nextProcessor) ->
+            lambda = new AWS.Lambda
+              region: 'us-east-1'
+              endpoint: services['AWS:API']
 
-              params = 
-                InvokeArgs: new Buffer JSON.stringify(data)
-                FunctionName: "#{processorName}-#{opts.environment || 'development'}"
+            params = 
+              InvokeArgs: new Buffer JSON.stringify(data)
+              FunctionName: "#{processorName}-#{opts.environment || 'development'}"
 
-              lambda.invokeAsync params
-                .on 'build', (req) ->
-                  req.httpRequest.endpoint.host = services['AWS:API'].host
-                  req.httpRequest.endpoint.port = services['AWS:API'].port
-                .send (err, data) ->
-                  console.log "INVOKE RESULTS", err, data
-                  callback err
+            lambda.invokeAsync params
+              .on 'build', (req) ->
+                req.httpRequest.endpoint.host = services['AWS:API'].host
+                req.httpRequest.endpoint.port = services['AWS:API'].port
+              .send (err, data) ->
+                console.log "INVOKE RESULTS", err, data
+                callback err
 
   oldThing: ->
     if opts.input
