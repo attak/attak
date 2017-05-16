@@ -12,8 +12,8 @@ test 'streams', (test) ->
         from: 'first'
         to: 'second'
 
-  TestUtils.setupTest {}, topology, {}, (err, {opts, manager, state}) =>
+  TestUtils.setupTest {}, topology, {}, (err, {opts, manager, state, cleanup}) =>
     test.equal state?['streams-test-first-second']?.id,
       'arn:aws:kinesis:us-east-1:133713371337:stream/streams-test-first-second',
       'should have recorded the new stream\'s ARN as its ID'
-    test.end()
+    cleanup test.end

@@ -33,8 +33,7 @@ TestUtils =
     TestUtils.setupComponentTest state, endState, app, testOpts, (err, resp, cleanup) ->
       app.setState state, endState, testOpts, (err, state) ->
         resp.state = app.loadState()
-        cleanup ->
-          callback err, resp
-
+        resp.cleanup = cleanup
+        callback err, resp
 
 module.exports = TestUtils
