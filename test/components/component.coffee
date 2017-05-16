@@ -28,8 +28,8 @@ test 'components', (test) ->
       @children =
         testChild: new ChildComponent
 
-  @component = new ParentComponent
-  services = @component.getSimulationServices()
+  component = new ParentComponent
+  services = component.getSimulationServices()
   test.equal services?['other:parent:service']?.some, 'config'  
   test.notEqual services, undefined, 'failed to find any services'
   test.notEqual services.length, 0
@@ -38,7 +38,7 @@ test 'components', (test) ->
   test.notEqual services['child:service'], undefined, 'failed to find child services'
 
   test.doesNotThrow =>
-    @component.getState (err, results) ->
+    component.getState (err, results) ->
       test.notEqual err, undefined, 'failed to throw an error for missing implementation'
   , undefined, 'failed to throw an error for missing implementation'
 
@@ -53,9 +53,9 @@ test 'components', (test) ->
       @state = newState
       callback()
 
-  @component = new SimpleComponent
-  @component.setState {}, {working: true}, {}, (err, results) =>
-    @component.getState (err, state) ->
+  component = new SimpleComponent
+  component.setState {}, {working: true}, {}, (err, results) =>
+    component.getState (err, state) ->
       differences = Differ.diff state, {working: true}
       test.equal differences?.length > 0, false, 'failed to set state'
 
