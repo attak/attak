@@ -911,18 +911,19 @@ AWSUtils =
     kinesis.putRecord params, (err, data) ->
       callback err, data
 
-  triggerProcessor: (processorName, data, opts, callback) ->
+  triggerProcessor: (state, processorName, data, opts, callback) ->
 
     lambda = new AWS.Lambda
       region: opts.region || 'us-east-1'
       endpoint: opts.services['AWS:Lambda'].endpoint
 
+    environment = opts.environment || 'development'
+    functionName = AWSUtils.getFunctionName state.name, processorName, environment
+
     params = 
       Payload: new Buffer JSON.stringify(data)
-      FunctionName: "#{processorName}-#{opts.environment || 'development'}"
+      FunctionName: functionName
       InvocationType: 'Event'
-      # Qualifier: '1'
-      # ClientContext: 'MyApp'
 
     lambda.invoke params, (err, data) ->
       if err

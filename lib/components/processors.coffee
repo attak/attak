@@ -96,16 +96,22 @@ class Processors extends BaseComponent
     ]
 
   handleInvoke: (state, opts, req, res) =>
-    environment = opts.environment || 'development'
+    allData = ""
+    req.on 'data', (data) -> allData += data.toString()
+    req.on 'end', =>
+      data = JSON.parse allData    
 
-    splitPath = req.url.split '/'
-    fullName = splitPath[3]
-    processorName = fullName.split("-#{environment}")[0]
-    @invokeProcessor processorName, req.body, state, opts, (err, results) ->
-      if err
-        res.status(500).send err
-      else
-        res.send results.body
+      environment = opts.environment || 'development'
+
+      splitPath = req.url.split '/'
+      fullName = splitPath[3]
+      extendedName = fullName.split("-#{environment}")[0]
+      processorName = extendedName.split("#{state.name}-")[1]
+      @invokeProcessor processorName, data, state, opts, (err, results) ->
+        if err
+          res.status(500).send err
+        else
+          res.send results.body
 
   invokeProcessor: (processorName, data, state, opts, callback) ->
     context =
