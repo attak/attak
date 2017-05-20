@@ -147,7 +147,6 @@ class Streams extends BaseComponent
     if state.name is undefined and state.processors
       for procName, procDefs of state.processors
         [thisStateName, otherProc] = req.body.StreamName.split("-#{procName}-")
-        console.log "LOOKING AT", req.body.StreamName, procName, thisStateName, otherProc, state.processors?[otherProc]?
         if otherProc and state.processors?[otherProc] isnt undefined
           stateName = thisStateName
           break
@@ -157,11 +156,8 @@ class Streams extends BaseComponent
     streamDefs = undefined
     for streamName, stream of (state.streams || {})
       thisStream = AWSUtils.getStreamName(stateName, stream.from, stream.to)
-      console.log "EXAMINING", req.body.StreamName, thisStream, stateName, stream
       if thisStream is req.body.StreamName
         streamDefs = [streamName, stream]
-      else
-        console.log "NO MATCH", req.body.StreamName, thisStream, stream
 
     switch type
       when 'CreateStream'
@@ -172,8 +168,6 @@ class Streams extends BaseComponent
           res.json
             message: "Stream already exists with name #{req.body.StreamName}"
         else
-          console.log "STREAMS ARE", req.body.StreamName, Object.keys(state.streams || {}), state
-
           if state.streams is undefined
             state.streams = {}
           if state.streams[req.body.StreamName] is undefined
@@ -181,8 +175,6 @@ class Streams extends BaseComponent
 
           newStreamState =
             id: "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
-
-          console.log "PROCESSORS ARE", Object.keys(state.processors || {})
 
           for procName, procDefs of (state.processors || {})
             [stateName, otherProc] = req.body.StreamName.split("#{procName}-")
