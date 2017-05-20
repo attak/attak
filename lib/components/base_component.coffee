@@ -19,7 +19,6 @@ class BaseComponent
     @state = {}
     @children = @options.children || {}
     @listeners = {}
-    @dependencies = @options.dependencies || []
 
     @manager = require '../component_manager'
 
