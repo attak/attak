@@ -68,6 +68,6 @@ test 'components', (test) ->
       component = new Component
 
       componentName = nodePath.basename file, '.coffee'
-      test.notEqual component.namespace, undefined, 'should have a namespace'
+      test.notEqual component.namespace, undefined, "component #{component?.constructor?.name} should have a namespace"
 
   test.end()
