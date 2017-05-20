@@ -40,7 +40,7 @@ class ATTAK extends BaseComponent
       component = @children[key]
       target = newState[key] || {}
 
-      runSetState = (done) =>
+      runSetState = (args..., done) =>
         component.setState currentState, target, opts, (err, results) =>
           extend true, currentState, @loadState()
           done err
