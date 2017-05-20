@@ -1,5 +1,6 @@
 fs = require 'fs'
 async = require 'async'
+ATTAK = require './attak'
 nodePath = require 'path'
 AWSUtils = require './aws'
 inquirer = require 'inquirer'
@@ -7,6 +8,7 @@ download = require 'download-github-repo'
 CommUtils = require './comm'
 LambdaUtils = require './lambda'
 TopologyUtils = require './topology'
+ServiceManager = require './simulation/service_manager'
 SimulationUtils = require './simulation/simulation'
 
 Attak =
@@ -62,66 +64,50 @@ Attak =
   deploy: (opts, callback) ->
     topology = TopologyUtils.loadTopology opts
 
-    async.waterfall [
-      (done) ->
-        if opts.skip?.processors
-          LambdaUtils.getProcessorInfo topology, opts, (err, lambdas) ->
-            results = {lambdas}
-            done err, results
-        else
-          LambdaUtils.deployProcessors topology, opts, (err, lambdas) ->
-            results = {lambdas}
-            done err, results
-      (results, done) ->
-        console.log "DEPLOY STREAMS", results
-        if opts.skip?.streams
-          return done null, results
+    opts.startTime = new Date
+    opts.environment = opts.environment || 'development'
 
-        {lambdas} = results
-        AWSUtils.deployStreams topology, opts, lambdas, (err, streams) ->
-          results.streams = streams
-          done null, results
-      (results, done) ->
-        if opts.skip?.config
-          return done null, results
+    input = {}
+    if opts.input
+      input = opts.input
+    else if opts.inputFile
+      inputPath = nodePath.resolve (opts.cwd || process.cwd()), opts.inputFile
+      if fs.existsSync inputPath
+        input = require inputPath
 
-        async.parallel [
-          (done) ->
-            if topology.api
-              gatewayOpts =
-                name: "#{topology.name}-#{opts.environment || 'development'}"
-                environment: opts.environment
+    app = new ATTAK
+      topology: topology
+      simulation: opts.simulation
+      environment: opts.environment
 
-              AWSUtils.setupGateway topology.api, gatewayOpts, (err, results) ->
-                results.gateway = results
-                done err
-            else
-              done()
-          (done) ->
-            if topology.schedule
-              AWSUtils.setupSchedule topology, opts, (err, results) ->
-                done err
-            else
-              done()
-          (done) ->
-            if topology.static
-              AWSUtils.setupStatic topology, opts, (err, results) ->
-                done err
-            else
-              done()
-        ], (err) ->
-          done err, results
-      (results, done) ->
-        if opts.skip?.provision or !topology.provision
-          return done null, results
+    app.clearState()
+    app.setup ->
+      services = app.getSimulationServices()
 
-        config =
-          aws:
-            endpoints: {}
+      manager = new ServiceManager
+        app: app
 
-        topology.provision topology, config, (err) ->
-          done err, results
-    ], (err, results) ->
-      callback? err, results
+      manager.setup topology, opts, services, (err, services) ->
+        opts.services = services
+        app.setState opts.startState || {}, topology, opts, (err, results) ->
+          if err then return callback err
+          async.forEachOf input, (data, processorName, nextProcessor) ->
+            lambda = new AWS.Lambda
+              region: 'us-east-1'
+              endpoint: services['AWS:API']
+
+            params = 
+              InvokeArgs: new Buffer JSON.stringify(data)
+              FunctionName: "#{processorName}-#{opts.environment || 'development'}"
+
+            lambda.invokeAsync params
+              .on 'build', (req) ->
+                req.httpRequest.endpoint.host = services['AWS:API'].host
+                req.httpRequest.endpoint.port = services['AWS:API'].port
+              .send (err, data) ->
+                console.log "INVOKE RESULTS", err, data
+                nextProcessor err
+          , (err) ->
+            callback err
 
 module.exports = Attak

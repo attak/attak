@@ -71,6 +71,7 @@ require('yargs')
     yargs.option('prebuiltDirectory', {alias: 'D', default: PREBUILT_DIRECTORY})
     return yargs
   }, function(argv) {
+    argv.simulation = false
     ATTAK.deploy(argv, close);
   })
   .command('init', 'Create scaffolding for a new attak project', function(yargs) {
@@ -83,7 +84,8 @@ require('yargs')
     yargs.option('id', {alias: 'i', default: LOGIN_NAME})
     return yargs
   }, function(argv) {
-    SimulationUtils.setupAndRun(argv, close);
+    argv.simulation = true
+    ATTAK.deploy(argv, close);
   })
   .command('trigger', 'Simulate an attak topology by running it locally', function(yargs) {
     yargs.option('region', {alias: 'r', default: AWS_REGION})

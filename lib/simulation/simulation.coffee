@@ -100,54 +100,6 @@ SimulationUtils =
         , (err) ->
           callback err, resultData
 
-  setupAndRun: (opts, callback) ->
-    topology = TopologyUtils.loadTopology opts
-
-    opts.startTime = new Date
-    opts.environment = opts.environment || 'development'
-
-    if opts.input
-      input = opts.input
-    else
-      inputPath = nodePath.resolve (opts.cwd || process.cwd()), opts.inputFile
-      if fs.existsSync inputPath
-        input = require inputPath
-      else
-        input = undefined
-
-    app = new ATTAK
-      topology: topology
-      simulation: true
-      environment: opts.environment
-
-    app.clearState()
-    app.setup ->
-      services = app.getSimulationServices()
-
-      manager = new ServiceManager
-        app: app
-
-      manager.setup topology, opts, services, (err, services) ->
-        opts.services = services
-        app.setState state, topology, opts, (err, results) ->
-          if err then return callback err
-          async.forEachOf input, (data, processorName, nextProcessor) ->
-            lambda = new AWS.Lambda
-              region: 'us-east-1'
-              endpoint: services['AWS:API']
-
-            params = 
-              InvokeArgs: new Buffer JSON.stringify(data)
-              FunctionName: "#{processorName}-#{opts.environment || 'development'}"
-
-            lambda.invokeAsync params
-              .on 'build', (req) ->
-                req.httpRequest.endpoint.host = services['AWS:API'].host
-                req.httpRequest.endpoint.port = services['AWS:API'].port
-              .send (err, data) ->
-                console.log "INVOKE RESULTS", err, data
-                callback err
-
   oldThing: ->
     if opts.input
       input = opts.input
