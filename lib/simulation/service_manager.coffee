@@ -29,6 +29,9 @@ class ServiceManager
       for path in service.paths
         @handlers[path] = service
 
+    if opts.simulation in [false, undefined]
+      return callback null, @handlers
+
     settingUp = {}
     async.forEachOf configs, (config, serviceKey, next) =>
       service = @handlers[serviceKey]
