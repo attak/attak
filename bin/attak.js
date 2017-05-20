@@ -4,7 +4,7 @@ require('coffee-script/register');
 var fs = require('fs');
 var dotenv = require('dotenv');
 var SimulationUtils = require('../lib/simulation/simulation')
-var ATTAK = require('../lib/attak');
+var ATTAK = require('../lib/main');
 
 var packageJson = fs.existsSync(process.cwd() + '/package.json') ? require(process.cwd() + '/package.json') : {};
 var packageJsonName = packageJson.name || 'UnnamedFunction';
@@ -79,7 +79,6 @@ require('yargs')
     ATTAK.init(argv, close);
   })
   .command('simulate', 'Simulate an attak topology by running it locally', function(yargs) {
-    yargs.option('dynamo', {alias: 'dy', default: LOCAL_DYNAMO})
     yargs.option('inputFile', {alias: 'j', default: INPUT_FILE})
     yargs.option('id', {alias: 'i', default: LOGIN_NAME})
     return yargs

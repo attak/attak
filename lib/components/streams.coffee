@@ -211,8 +211,6 @@ class Streams extends BaseComponent
           res.json
             message: "Stream not found: #{req.body.StreamName}"
       else
-        console.log "GOT STREAM PUT", targetId, req.body
-
         if streamDefs
           processorName = @getTargetProcessor state, req.body.StreamName
           data = JSON.parse new Buffer(req.body.Data, 'base64').toString()
