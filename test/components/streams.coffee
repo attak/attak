@@ -16,7 +16,6 @@ test 'streams', (test) ->
         context.emit 'testTopic', {test: 'event'}
         callback()
       second: (event, context, callback) ->
-        console.log "INSIDE OF SECOND"
         didCallSecond = true
         context.emit 'secondTopic', {other: 'event'}
         callback()
@@ -27,16 +26,13 @@ test 'streams', (test) ->
   opts =
     onEmit:
       first: (topic, data, opts, done) ->
-        console.log "GOT FIRST EMIT", data
         didEmitFirst = true
         done()
       second: (topic, data, opts, done) ->
-        console.log "GOT SECOND EMIT", data
         didEmitSecond = true
         done()
 
   TestUtils.setupTest {}, topology, opts, (err, {opts, manager, state, cleanup}) =>
-    console.log "STATE AFTER SETUP", state
     test.equal state.streams?['streams-test-first-second']?.id,
       'arn:aws:kinesis:us-east-1:133713371337:stream/streams-test-first-second',
       'should have recorded the new stream\'s ARN as its ID'

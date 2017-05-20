@@ -290,7 +290,6 @@ class BaseComponent
             done err, childPlans, componentPlans
       ], (err, childPlans, componentPlans) =>
         plan = [plan..., childPlans..., componentPlans...]
-        console.log "FINAL PLAN", plan
         callback err, plan
 
   getSimulationServices: () ->

@@ -116,7 +116,6 @@ class Streams extends BaseComponent
           callback err, streamDefs, associationResults
 
   invokeProcessor: (processorName, data, state, opts, callback) ->
-    console.log "INVOKE PROCESSOR FROM STREAMS", processorName, opts
     topology = TopologyUtils.loadTopology opts
     
     context =
@@ -143,7 +142,7 @@ class Streams extends BaseComponent
     targetId = req.headers['x-amz-target']
     [version, type] = targetId.split '.'
 
-    console.log "HANDLE KINESIS PUT", type, req.body
+    console.log "HANDLE KINESIS PUT", type
     if state.name is undefined and state.processors
       for procName, procDefs of state.processors
         [thisStateName, otherProc] = req.body.StreamName.split("-#{procName}-")
