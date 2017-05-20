@@ -123,9 +123,8 @@ class Streams extends BaseComponent
       state: state
       topology: topology
 
-    processor = TopologyUtils.getProcessor opts, topology, processorName
-
-    handler = AttakProc.handler processorName, state, processor, opts
+    {impl} = TopologyUtils.getProcessor opts, topology, processorName
+    handler = AttakProc.handler processorName, state, impl, opts
     handler data, context, (err, results) ->
       callback err, results
 
