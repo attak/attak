@@ -73,7 +73,6 @@ class Processors extends BaseComponent
         opts = extend opts,
           name: state.name
           services: opts.services
-          simulation: true
           processors: newState
 
         LambdaUtils.deployProcessors state, opts, (err, procDatas) ->
@@ -81,11 +80,16 @@ class Processors extends BaseComponent
             processors: {}
           
           for funcName, procData of procDatas
+            [err, results] = procData
+
+            if err
+              console.log "PROC DATA ERR", funcName, err, results
+
             environment = opts.environment || 'development'
             extendedProcName = funcName.split("-#{environment}")[0]
             procName = extendedProcName.split("#{state.name}-")[1]
             addedState.processors[procName] =
-              id: procData.FunctionArn
+              id: results.FunctionArn
 
           state = extend true, state, addedState
           done null, state
@@ -120,9 +124,8 @@ class Processors extends BaseComponent
       state: state
       topology: topology
 
-    processor = TopologyUtils.getProcessor opts, topology, processorName
-
-    handler = AttakProc.handler processorName, state, processor, opts
+    {impl} = TopologyUtils.getProcessor opts, topology, processorName
+    handler = AttakProc.handler processorName, state, impl, opts
     handler data, context, (err, results) ->
       callback err, results
 
