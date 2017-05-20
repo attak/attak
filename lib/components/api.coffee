@@ -254,7 +254,6 @@ class API extends BaseComponent
 
   handleRequest: (state, opts, req, res) ->
     console.log "API HANDLE REQUEST", req.method, req.url, req.query
-    console.log "STATE IS", state
 
     awsLambda = new AWS.Lambda
       apiVersion: '2015-03-31'
@@ -267,9 +266,11 @@ class API extends BaseComponent
       httpMethod: req.method
       queryStringParameters: req.query
 
+    functionName = AWSUtils.getFunctionName state.name, state.api.handler, opts.environment || 'development'
+
     params = 
       Payload: new Buffer JSON.stringify(event)
-      FunctionName: "#{state.api.handler}-#{opts.environment || 'development'}"
+      FunctionName: functionName
       InvocationType: 'Event'
 
     awsLambda.invoke params, (err, results) ->
