@@ -84,18 +84,24 @@ TopologyUtils =
     if procData is undefined
       throw new Error "Failed to find processor #{name}"
 
+    loading = {}
     if procData.constructor is String
-      source = procData
+      loading =
+        type: 'path'
+        path: procData
     else if procData?.constructor is Function
-      source = procData
+      loading =
+        type: 'dynamic'
+        impl: procData
     else
-      source = procData.source || procData.path
+      loading =
+        type: 'path'
+        path: procData.source || procData.path
 
-    if source.handler
-      processor = source
-    else if source.constructor is Function
-      processor = {handler: source}
-    else
-      processor = program.processor || require nodePath.resolve(workingDir, source)
+    switch loading.type
+      when 'path'
+        loading.impl = program.processor || require nodePath.resolve(workingDir, source)
+
+    return loading
 
 module.exports = TopologyUtils

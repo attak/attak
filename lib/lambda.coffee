@@ -48,9 +48,9 @@ LambdaUtils =
       try {
         var attak = require('attak-processor')
         var topology = attak.utils.topology.loadTopology({})
-        var impl = attak.utils.topology.getProcessor({}, topology, procName)
+        var loaded = attak.utils.topology.getProcessor({}, topology, procName)
         var opts = #{JSON.stringify({region: opts.region, environment: environment})}
-        exports.handler = attak.handler(procName, topology, impl, opts)
+        exports.handler = attak.handler(procName, topology, loaded.impl, opts)
       
       } catch(err) {
         console.log("ERROR SETTING UP HANDLER", environment, procName, topology, process.env)
@@ -119,18 +119,21 @@ LambdaUtils =
             if err
               log "Creating new function", params.FunctionName
               awsLambda.createFunction params, (err, results) ->
-                retval[params.FunctionName] = results
+                retval[params.FunctionName] = [err, results]
                 nextRegion err
             else
               log "Updating existing function", params.FunctionName, params
-              retval[params.FunctionName] = results
               LambdaUtils.uploadExisting awsLambda, params, (err, results) ->
+                retval[params.FunctionName] = [err, results]
                 nextRegion err
         
         , (err, results) ->
           nextProcessor err
       , (err) ->
-        fs.unlink runnerPath, ->
+        if fs.existsSync runnerPath
+          fs.unlink runnerPath, ->
+            callback err, retval
+        else
           callback err, retval
 
   uploadExisting: (awsLambda, params, callback) ->
@@ -181,6 +184,7 @@ LambdaUtils =
         callback null, data
 
   buildAndArchive: (program, callback) ->
+    console.log "BUILD AND ARCHIVE", program.simulation
     if program.simulation
       return callback()
 
@@ -190,19 +194,23 @@ LambdaUtils =
       console.warn 'Warning!!! You are building on a platform that is not 64-bit Linux (%s). ' + 'If any of your Node dependencies include C-extensions, they may not work as expected in the ' + 'Lambda environment.\n\n', arch
 
     codeDirectory = lambda._codeDirectory(program)
+    console.log "CLEANING DIRECTORY"
     lambda._cleanDirectory codeDirectory, (err) ->
       if err
         return callback(err)
 
       # Move files to tmp folder
+      console.log "MOVING TO TMP DIR"
       lambda._rsync program, '.', codeDirectory, true, (err) ->
         if err
           return callback(err)
         
+        console.log "NPM INSTALL PRODUCTION"
         lambda._npmInstall program, codeDirectory, (err) ->
           if err
             return callback(err)
 
+          console.log "POST INSTALL"
           lambda._postInstallScript program, codeDirectory, (err) ->
             if err
               return callback(err)
@@ -211,7 +219,9 @@ LambdaUtils =
             if program.configFile
               lambda._setEnvironmentVars program, codeDirectory
 
+            console.log "ZIP"
             LambdaUtils.zipDir program, codeDirectory, (err, buffer) ->
+              console.log "DONE"
               callback err, buffer
 
 module.exports = LambdaUtils
