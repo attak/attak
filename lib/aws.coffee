@@ -847,10 +847,10 @@ AWSUtils =
       if err
         console.log "GOT ERROR", err
 
-      if opts.simulate
-        console.log "API RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
-      else
+      if opts.simulation
         console.log "API RUNNING AT #{opts.services['ATTAK:API'].endpoint}"
+      else
+        console.log "API RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
 
       callback err, results
 
