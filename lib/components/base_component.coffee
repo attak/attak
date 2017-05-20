@@ -109,7 +109,7 @@ class BaseComponent
     
     cwd = @options?.cwd || process.cwd()
     resolved = nodePath.resolve cwd, stateFilePath
-    console.log "SAVING STATE TO", @namespace, path, resolved, path, state
+    # console.log "SAVING STATE TO", @namespace, path, resolved, path, state
     fs.writeFileSync resolved, JSON.stringify(state, null, 2)
 
   loadState: (path=[]) ->
@@ -155,12 +155,9 @@ class BaseComponent
         callback err, finalState
 
   executePlan: (currentState, newState, diffs, plan, opts, callback) ->    
-    console.log "EXECUTE PLAN", @constructor.name
     async.eachSeries plan, (item, nextItem) =>
       try
-        console.log "RUNNING ITEM", item.source?.constructor.name, item.msg
         item.run currentState, (err, changedState={}) =>
-          console.log "EXECUTE RESULTS", err, item.source?.constructor.name, changedState
           changedState = extend true, currentState, changedState
           @saveState changedState
           nextItem err
@@ -206,7 +203,6 @@ class BaseComponent
       callback err, finalState
 
   planChildResolutions: (currentState, newState, childDiffs, opts, callback) ->
-    console.log "PLAN CHILD RESOLUTION"
     plan = []
     asyncItems = {}
     async.eachOfSeries childDiffs, (config, childName, nextChild) =>
@@ -225,11 +221,9 @@ class BaseComponent
       nextChild()
     , (err) =>
       async.auto asyncItems, (err) ->
-        console.log "DONE CHILD RESOLUTION", @constructor.name, err
         callback err, plan
   
   planComponentResolutions: (currentState, newState, diffs, opts, callback) ->
-    console.log "PLAN COMPONENT RESOLUTION", @constructor.name, diffs
     plan = []
     async.eachSeries diffs, (diff, nextDiff) =>
       diffPlan = @handleDiff diff, opts
@@ -243,11 +237,9 @@ class BaseComponent
         plan = [plan..., diffPlan...]
         nextDiff()
     , (err) =>
-      console.log "DONE COMPONENT RESOLUTION", @constructor.name, err
       callback err, plan
 
   planResolution: (currentState, newState, diffs=[], opts, callback) ->
-    console.log "PLAN RESOLUTION", @namespace, handleDiffs?
     plan = []
     opts.fullState = @loadState()
     

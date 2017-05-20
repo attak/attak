@@ -70,7 +70,6 @@ class Processors extends BaseComponent
     [
       msg: 'resolve processor state'
       run: (state, done) ->
-        console.log "RUNNING PROCESSOR CREATE"
         opts = extend opts,
           name: state.name
           services: opts.services
@@ -78,7 +77,6 @@ class Processors extends BaseComponent
           processors: newState
 
         LambdaUtils.deployProcessors state, opts, (err, procDatas) ->
-          console.log "DEPLOYMENT FINISHED", err
           addedState =
             processors: {}
           
@@ -90,7 +88,6 @@ class Processors extends BaseComponent
               id: procData.FunctionArn
 
           state = extend true, state, addedState
-          console.log "STATE AFTER PROCESSORS", state
           done null, state
 
     ]
@@ -135,7 +132,6 @@ class Processors extends BaseComponent
     req.on 'end', ->
       data = JSON.parse allData
 
-      console.log "CREATE FUNCTION", req.method, req.url, req.params, data, req.headers
       name = data.FunctionName
       res.json
         FunctionName: name

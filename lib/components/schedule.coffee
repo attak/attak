@@ -57,7 +57,7 @@ class Schedule extends BaseComponent
 
   handlePost: (state, opts, req, res) ->
     target = req.headers['x-amz-target'].split('AWSEvents.')[1]
-    console.log "HANDLE POST", target, req.body, req.headers, state
+
     switch target
       when 'PutRule'
 

@@ -253,7 +253,7 @@ class API extends BaseComponent
     res.json ok: true
 
   handleRequest: (state, opts, req, res) ->
-    console.log "HANDLE", req.method, req.url, req.query, req.body, opts.services['AWS:Lambda'].endpoint
+    console.log "API HANDLE REQUEST", req.method, req.url, req.query
     console.log "STATE IS", state
 
     awsLambda = new AWS.Lambda

@@ -49,7 +49,7 @@ class Streams extends BaseComponent
       {
         msg: "Create new stream"
         run: (state, done) =>
-          console.log "RUN CREATE STREAMS", path, defs, state, opts.onEmit
+          console.log "RUN CREATE STREAMS", path, defs
           if namespace is 'processors'
             [procName, procArgs...] = args
             streams = @getProcessorStreams state, procName
@@ -88,7 +88,6 @@ class Streams extends BaseComponent
     ]
 
   createStream: (state, streamName, defs, opts, callback) ->
-    console.log "ACTUAL CREATE STREAM", streamName, defs, state
     region = opts.region || 'us-east-1'
 
     iam = new AWS.IAM
@@ -96,7 +95,6 @@ class Streams extends BaseComponent
       endpoint: opts.services['AWS:IAM'].endpoint
 
     iam.getUser (err, user) ->
-      console.log "USER RESULTS", err, user, state
       AWSUtils.createStream opts, state.name, streamName, (err, results) ->
         if err then return callback err
 
@@ -134,7 +132,6 @@ class Streams extends BaseComponent
   getTargetProcessor: (state, targetStream) ->
     for streamName, stream of (state.streams || {})
       streamName = AWSUtils.getStreamName state.name, stream.from, stream.to
-      console.log "STREAM NAME", streamName, "LOOKING FOR", targetStream
       if streamName is targetStream
         return stream.to
 
@@ -142,7 +139,6 @@ class Streams extends BaseComponent
     targetId = req.headers['x-amz-target']
     [version, type] = targetId.split '.'
 
-    console.log "HANDLE KINESIS PUT", type
     if state.name is undefined and state.processors
       for procName, procDefs of state.processors
         [thisStateName, otherProc] = req.body.StreamName.split("-#{procName}-")
@@ -160,8 +156,6 @@ class Streams extends BaseComponent
 
     switch type
       when 'CreateStream'
-        console.log "CREATE STREAM", req.body, state, streamDefs
-
         if streamDefs
           res.header 'x-amzn-errortype', 'ResourceInUseException'
           res.json
@@ -184,7 +178,6 @@ class Streams extends BaseComponent
 
           state.streams[req.body.StreamName] = newStreamState
 
-          console.log "AFTER STREAM CREATE", state
           res.json ok: true
 
       when 'DescribeStream'
@@ -227,7 +220,6 @@ class Streams extends BaseComponent
     req.on 'data', (data) -> allData += data.toString()
     req.on 'end', ->
       mapping = JSON.parse allData
-      console.log "MAPPING DATA", mapping
       res.json extend mapping,
         UUID: uuid.v1()
         LastModified: moment().format()

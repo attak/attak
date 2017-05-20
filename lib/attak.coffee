@@ -41,12 +41,12 @@ class ATTAK extends BaseComponent
       target = newState[key] || {}
 
       runSetState = (done) =>
-        console.log "SET COMPONENT STATE", component.constructor.name
         component.setState currentState, target, opts, (err, results) =>
-          console.log "FINISHED SETTING COMPONENT STATE", component.constructor.name, err
           extend true, currentState, @loadState()
-          console.log "UPDATED CURRENT STATE", currentState
           done err
+
+      if component is undefined
+        console.log "UNKNOWN COMPONENT", key, newState, keys
 
       if component.dependencies
         asyncItems[key] = [component.dependencies..., runSetState]
@@ -56,7 +56,6 @@ class ATTAK extends BaseComponent
       next()
     , (err) =>
       async.auto asyncItems, 1, (err) ->
-        console.log "ALL DONE SETTING STATE", err
         callback err, currentState
 
   handleDiff: (state, diff, opts) ->
