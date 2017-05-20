@@ -8,9 +8,7 @@ class IAM extends BaseService
 
   setup: (config, opts, callback) ->
     @disableParsing = true
-    @host = '127.0.0.1'
     @port = opts.port || 14352
-    @endpoint = "http://#{@host}:#{@port}"
     super arguments...
 
 module.exports = IAM

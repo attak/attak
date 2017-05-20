@@ -7,9 +7,7 @@ class Gateway extends BaseService
   ]
 
   setup: (config, opts, callback) ->
-    @host = '127.0.0.1'
     @port = opts.port || 24424
-    @endpoint = "http://#{@host}:#{@port}"
     super arguments...
 
 module.exports = Gateway

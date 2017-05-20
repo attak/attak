@@ -10,6 +10,9 @@ class BaseService
     @guid = uuid.v1()
     
   setup: (config, opts, callback) ->
+    @host = 'localhost'
+    @endpoint = "http://#{@host}:#{@port}"
+
     @app = express()
     
     @app.use (req, res, next) =>
