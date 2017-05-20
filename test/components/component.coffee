@@ -39,8 +39,8 @@ test 'components', (test) ->
 
   test.doesNotThrow =>
     component.getState (err, results) ->
-      test.notEqual err, undefined, 'failed to throw an error for missing implementation'
-  , undefined, 'failed to throw an error for missing implementation'
+      test.notEqual err, undefined, 'should throw an error for missing implementation'
+  , undefined, 'should throw an error for missing implementation'
 
   class SimpleComponent extends BaseComponent
     getState: (callback) ->
@@ -56,9 +56,8 @@ test 'components', (test) ->
   component.setState {}, {working: true}, {}, (err, results) =>
     component.getState (err, state) ->
       differences = Differ.diff state, {working: true}
-      test.equal differences?.length > 0, false, 'failed to set state'
-
-
+      test.equal differences?.length > 0, false, 'should be able to set state'
+      test.equal err, null, 'should be able to set state without error'
 
     files = fs.readdirSync nodePath.resolve(__dirname, "../../lib/components")
 
@@ -69,6 +68,6 @@ test 'components', (test) ->
       component = new Component
 
       componentName = nodePath.basename file, '.coffee'
-      test.notEqual component.namespace, undefined
+      test.notEqual component.namespace, undefined, 'should have a namespace'
 
   test.end()
