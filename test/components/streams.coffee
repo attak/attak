@@ -1,19 +1,49 @@
 test = require 'tape'
+AWSUtils = require '../../lib/aws'
 TestUtils = require '../utils'
 
 test 'streams', (test) ->
+  didCallFirst = false
+  didCallSecond = false
+  didEmitFirst = false
+  didEmitSecond = false
+
   topology =
     name: 'streams-test'
     processors:
-      first: () -> null
-      second: () -> null
-    streams:
-      'streams-test-first-second':
-        from: 'first'
-        to: 'second'
+      first: (event, context, callback) ->
+        didCallFirst = true
+        context.emit 'testTopic', {test: 'event'}
+        callback()
+      second: (event, context, callback) ->
+        console.log "INSIDE OF SECOND"
+        didCallSecond = true
+        context.emit 'secondTopic', {other: 'event'}
+        callback()
+    streams: [
+      ['first', 'second']
+    ]
 
-  TestUtils.setupTest {}, topology, {}, (err, {opts, manager, state, cleanup}) =>
-    test.equal state?['streams-test-first-second']?.id,
+  opts =
+    onEmit:
+      first: (topic, data, opts, done) ->
+        console.log "GOT FIRST EMIT", data
+        didEmitFirst = true
+        done()
+      second: (topic, data, opts, done) ->
+        console.log "GOT SECOND EMIT", data
+        didEmitSecond = true
+        done()
+
+  TestUtils.setupTest {}, topology, opts, (err, {opts, manager, state, cleanup}) =>
+    console.log "STATE AFTER SETUP", state
+    test.equal state.streams?['streams-test-first-second']?.id,
       'arn:aws:kinesis:us-east-1:133713371337:stream/streams-test-first-second',
       'should have recorded the new stream\'s ARN as its ID'
-    cleanup test.end
+
+    AWSUtils.triggerProcessor state, 'first', {test: 'works'}, opts, (err, results) ->
+      test.equal didCallFirst, true, 'should have called the first processor'
+      test.equal didCallSecond, true, 'should have called the second processor'
+      test.equal didEmitFirst, true, 'should have emitted from the first processor'
+      test.equal didEmitSecond, true, 'should have emitted from the second processor'
+      cleanup test.end

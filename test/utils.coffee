@@ -18,9 +18,12 @@ TestUtils =
         target: extend true, testOpts?.target || {}, newState || {}
         services: services
 
-      callback err, {opts, manager, oldState, newState}, (finish) ->
+      resp = {opts, manager, oldState, newState}
+      cleanup = (finish) ->
         manager.stopAll ->
           finish()
+
+      callback err, resp, cleanup
 
   setupTest: (state, topology, testOpts={}, callback) ->
     endState = TopologyUtils.loadTopology {topology}

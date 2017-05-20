@@ -54,7 +54,6 @@ class BaseService
       callback null, @endpoint
 
   stop: (callback) ->
-    console.log "STOP", @constructor.name
     @server?.close()
     callback()
 

@@ -49,14 +49,18 @@ class Streams extends BaseComponent
       {
         msg: "Create new stream"
         run: (state, done) =>
-          console.log "RUN CREATE STREAMS", path, defs, state
+          console.log "RUN CREATE STREAMS", path, defs, state, opts.onEmit
           if namespace is 'processors'
             [procName, procArgs...] = args
             streams = @getProcessorStreams state, procName
             async.eachSeries streams, ([streamName, streamDefs], nextStream) ->
               @createStream state, streamName, defs, opts, (err, streamData, association) ->
                 if err then return done err
-                state.streams[streamData.name].id = streamData.arn
+
+                defs.id = streamData.arn
+                state.streams = extend true, state.streams,
+                  "#{streamData.name}": defs
+
                 nextStream err
             , (err) ->
               done err, state
@@ -64,10 +68,12 @@ class Streams extends BaseComponent
             [streamName, streamDefs] = args
             @createStream state, streamName, defs, opts, (err, streamData, association) ->
               if err then return done err
-              extendedState = extend state,
-                "#{streamData.name}":
-                  id: streamData.arn
-              done err, extendedState
+              
+              defs.id = streamData.arn
+              state.streams = extend true, state.streams,
+                "#{streamData.name}": defs
+
+              done err, state
       }
     ]
 
@@ -110,13 +116,18 @@ class Streams extends BaseComponent
           callback err, streamDefs, associationResults
 
   invokeProcessor: (processorName, data, state, opts, callback) ->
+    console.log "INVOKE PROCESSOR FROM STREAMS", processorName, opts
+    topology = TopologyUtils.loadTopology opts
+    
     context =
       done: -> callback()
       fail: (err) -> callback err
       success: (results) -> callback null, results
       state: state
+      topology: topology
 
-    processor = TopologyUtils.getProcessor opts, state, processorName
+    processor = TopologyUtils.getProcessor opts, topology, processorName
+
     handler = AttakProc.handler processorName, state, processor, opts
     handler data, context, (err, results) ->
       callback err, results
@@ -128,7 +139,7 @@ class Streams extends BaseComponent
       if streamName is targetStream
         return stream.to
 
-  handleKinesisPut: (state, opts, req, res, done) =>
+  handleKinesisPut: (state, opts, req, res) =>
     targetId = req.headers['x-amz-target']
     [version, type] = targetId.split '.'
 

@@ -114,14 +114,17 @@ class Processors extends BaseComponent
           res.send results.body
 
   invokeProcessor: (processorName, data, state, opts, callback) ->
+    topology = TopologyUtils.loadTopology opts
+    
     context =
       done: -> callback()
       fail: (err) -> callback err
       success: (results) -> callback null, results
       state: state
+      topology: topology
 
-    topology = TopologyUtils.loadTopology opts
     processor = TopologyUtils.getProcessor opts, topology, processorName
+
     handler = AttakProc.handler processorName, state, processor, opts
     handler data, context, (err, results) ->
       callback err, results
