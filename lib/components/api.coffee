@@ -11,6 +11,7 @@ class API extends BaseComponent
 
   dependencies: [
     'name'
+    'processors'
   ]
 
   simulation:
@@ -253,8 +254,6 @@ class API extends BaseComponent
     res.json ok: true
 
   handleRequest: (state, opts, req, res) ->
-    console.log "API HANDLE REQUEST", req.method, req.url, req.query
-
     awsLambda = new AWS.Lambda
       apiVersion: '2015-03-31'
       endpoint: opts.services['AWS:Lambda'].endpoint
@@ -274,8 +273,6 @@ class API extends BaseComponent
       InvocationType: 'Event'
 
     awsLambda.invoke params, (err, results) ->
-      console.log "INVOKE RESULTS", err, results
-
       if err
         res.status 400
         res.header 'x-amzn-errortype', 'ResourceNotFoundException'
