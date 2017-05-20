@@ -36,7 +36,7 @@ SimulationUtils =
     results = {}
     workingDir = program.cwd || process.cwd()
     
-    processor = TopologyUtils.getProcessor program, topology, processorName
+    {impl} = TopologyUtils.getProcessor program, topology, processorName
 
     context =
       done: -> callback()
@@ -58,7 +58,7 @@ SimulationUtils =
         triggerId: triggerId
         start: startTime
 
-      handler = AttakProc.handler processorName, topology, processor, program
+      handler = AttakProc.handler processorName, topology, impl, program
       handler data, context, (err, resultData) ->
         endTime = new Date().getTime()
 
