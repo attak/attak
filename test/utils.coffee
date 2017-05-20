@@ -27,10 +27,13 @@ TestUtils =
 
   setupTest: (state, topology, testOpts={}, callback) ->
     endState = TopologyUtils.loadTopology {topology}
+    
     testOpts.topology = topology
+    testOpts.simulation = true
+
     app = new ATTAK
       topology: topology
-      simulation: true
+      simulation: testOpts.simulation
       environment: testOpts.environment || 'development'
 
     TestUtils.setupComponentTest state, endState, app, testOpts, (err, resp, cleanup) ->
