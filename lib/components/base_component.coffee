@@ -157,7 +157,7 @@ class BaseComponent
     async.eachSeries plan, (item, nextItem) =>
       try
         item.run currentState, (err, changedState={}) =>
-          changedState = extend true, currentState, changedState
+          currentState = extend true, currentState, changedState
           @saveState changedState
           nextItem err
       catch err
