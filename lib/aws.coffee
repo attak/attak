@@ -760,7 +760,9 @@ AWSUtils =
         params =
           FunctionName: functionName
 
+        log "GETTING POLICY", params
         lambda.getPolicy params, (err, results) ->
+          log "GET POLICY RESULTS", err, results
           policy = JSON.parse(results?.Policy || '{}')
           done err, {gateway, root, account, policy, proxy}
 
@@ -776,6 +778,7 @@ AWSUtils =
           StatementId: "apigateway-#{gateway.name}-star"
           FunctionName: functionName
 
+        log "ADDING STAR PERMISSIONS", params
         lambda.addPermission params, (err, results) ->
           log "ADD STAR PERMISSIONS RESULTS", results
           done null, {gateway, root, account, policy, proxy}
@@ -792,6 +795,7 @@ AWSUtils =
           StatementId: "apigateway-#{gateway.name}-any"
           FunctionName: functionName
 
+        log "ADDING ANY PERMISSIONS", params
         lambda.addPermission params, (err, results) ->
           log "ADD PERMISSIONS RESULTS", results, params
           done null, {gateway, root, account, policy, proxy}
@@ -808,6 +812,7 @@ AWSUtils =
           StatementId: "apigateway-#{gateway.name}-proxy"
           FunctionName: functionName
 
+        log "ADDING PROXY PERMISSIONS", params
         lambda.addPermission params, (err, results) ->
           log "ADD PROXY PERMISSIONS RESULTS", err, results, params
           done null, {gateway, root, account, proxy}
