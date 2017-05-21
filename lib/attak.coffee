@@ -12,6 +12,7 @@ class ATTAK extends BaseComponent
   defaultComponents:
     api: require './components/api'
     name: require './components/name'
+    static: require './components/static'
     streams: require './components/streams'
     schedule: require './components/schedule'
     processors: require './components/processors'

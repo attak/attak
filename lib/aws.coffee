@@ -125,20 +125,15 @@ federatedPolicies =
 
 AWSUtils =
 
-  setupStatic: (topology, opts, callback) ->
+  setupStatic: (state, staticName, opts, callback) ->
     workingDir = opts.cwd || process.cwd()
-
-    if topology.static.constructor is String
-      staticDir = nodePath.resolve workingDir, topology.static
-    else
-      staticDir = nodePath.resolve workingDir, topology.static.dir
+    staticDir = nodePath.resolve workingDir, state.static[staticName].dir
     
-    bucketName = "#{topology.name}-#{opts.environment || 'development'}"
-
+    bucketName = AWSUtils.getStaticBucket state.name, staticName, opts.environment || 'development'
+    console.log "BUCKET NAME", bucketName, staticName, state
     AWSUtils.setupBucket bucketName, opts, (err, results) ->
-      log "DONE SETTING UP BUCKET"
       AWSUtils.uploadDir bucketName, staticDir, opts, (err, results) ->
-        AWSUtils.setupBucketPermissions topology, opts, bucketName, ->
+        AWSUtils.setupBucketPermissions state, opts, bucketName, ->
           callback()
 
   getBucketPolicy: (bucketName, type, opts, callback) ->
@@ -857,6 +852,9 @@ AWSUtils =
         console.log "API RUNNING AT https://#{gateway.id}.execute-api.#{region}.amazonaws.com/#{environment}/"
 
       callback err, results
+
+  getStaticBucket: (topologyName, staticName, environment) ->
+    "#{topologyName}-#{staticName}-#{environment}"
 
   getStreamName: (topologyName, sourceProcessor, destProcessor) ->
     "#{topologyName}-#{sourceProcessor}-#{destProcessor}"

@@ -67,6 +67,15 @@ TopologyUtils =
         handler: topology.api
       topology.api = objDefs
 
+    if topology.static
+      if topology.static.constructor is String
+        topology.static =
+          default:
+            dir: topology.static
+      else if topology.static.dir
+        topology.static =
+          default: topology.static
+
     return topology
 
   getProcessor: (program, topology, name) ->
