@@ -762,12 +762,11 @@ AWSUtils =
 
         log "GETTING POLICY", params
         lambda.getPolicy params, (err, results) ->
-          log "GET POLICY RESULTS", err, results
           policy = JSON.parse(results?.Policy || '{}')
-          done err, {gateway, root, account, policy, proxy}
+          done null, {gateway, root, account, policy, proxy}
 
       ({gateway, root, account, policy, proxy}, done) ->
-        for statement in policy.Statement
+        for statement in (policy?.Statement || [])
           if statement.Sid is "apigateway-#{gateway.name}-star"
             return done null, {gateway, root, account, policy}
 
@@ -784,7 +783,7 @@ AWSUtils =
           done null, {gateway, root, account, policy, proxy}
 
       ({gateway, root, account, policy, proxy}, done) ->
-        for statement in policy.Statement
+        for statement in (policy?.Statement || [])
           if statement.Sid is "apigateway-#{gateway.name}-any"
             return done null, {gateway, root, account, policy}
 
@@ -801,7 +800,7 @@ AWSUtils =
           done null, {gateway, root, account, policy, proxy}
 
       ({gateway, root, account, policy, proxy}, done) ->
-        for statement in policy.Statement
+        for statement in (policy.Statement || [])
           if statement.Sid is "apigateway-#{gateway.name}-proxy"
             return done null, {gateway, root, account, policy}
 
