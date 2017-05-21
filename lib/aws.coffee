@@ -297,7 +297,7 @@ AWSUtils =
 
     async.each topology.static.permissions.invoke, (target, next) ->
       environment = opts.environment || 'development'
-      functionName = "#{target}-#{environment}"
+      functionName = AWSUtils.getFunctionName topology.name, target, environment
 
       async.waterfall [
         (done) ->
@@ -425,7 +425,7 @@ AWSUtils =
     scheduleId = undefined
     async.forEachOf topology.schedule, (defs, scheduleName, next) ->
       console.log "SETUP SCHEDULE", scheduleName, defs, opts.services['AWS:CloudWatchEvents'].endpoint
-      functionName = "#{defs.processor}-#{environment}"
+      functionName = AWSUtils.getFunctionName topology.name, defs.processor, environment
       
       async.waterfall [
         (done) ->
@@ -487,10 +487,10 @@ AWSUtils =
     , (err) ->
       callback err, scheduleId
 
-  setupGateway: (config, opts, callback) ->
+  setupGateway: (state, config, opts, callback) ->
     region = opts.region || 'us-east-1'
     environment = opts.environment || 'development'
-    functionName = "#{config.handler}-#{environment}"
+    functionName = AWSUtils.getFunctionName state.name, config.handler, environment
 
     log "SETUP GATEWAY", region, environment, functionName, config
     apiGateway = new AWS.APIGateway
