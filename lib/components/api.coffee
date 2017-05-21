@@ -53,11 +53,11 @@ class API extends BaseComponent
             switch property
               when 'handler'
                 gatewayOpts =
-                  name: "#{state.name}-#{opts.environment || 'development'}"
+                  name: "#{state.name}-#{opts.environment || 'development'}-gateway"
                   handler: newDefs
 
                 console.log "SETUP CONFIG", gatewayOpts
-                AWSUtils.setupGateway gatewayOpts, opts, (err, results) ->
+                AWSUtils.setupGateway state, gatewayOpts, opts, (err, results) ->
                   console.log "GATEWAY RESULTS", err, results
                   state.api = extend true, state.api,
                     name: gatewayOpts.name
