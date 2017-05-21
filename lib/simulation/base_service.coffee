@@ -45,7 +45,6 @@ class BaseService
         @app[method.toLowerCase()] fullPath, (req, res, next) =>
           state = @manager.app.loadState()
           handler state, opts, req, res, (err, changedState) ->
-            console.log "BASE SERVICE HANDLER RESULTS", err, changedState
             next err
     , =>
       @app.use (req, res, next) =>
@@ -53,7 +52,6 @@ class BaseService
         next()
 
     @server = @app.listen @port, () =>
-      console.log "#{@constructor.name} LISTENING AT", @endpoint
       callback null, @endpoint
 
   stop: (callback) ->

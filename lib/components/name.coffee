@@ -11,7 +11,7 @@ class Name extends BaseComponent
     [
       msg: 'setup name'
       run: (state, done) ->
-        console.log "CREATE NAME"
+        console.log "CREATE NAME", path, newDefs
         state.name = newDefs
         done null, state
     ]

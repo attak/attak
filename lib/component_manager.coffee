@@ -33,13 +33,11 @@ class ComponentManager
     if opts.preventNotify
       return callback null, plan
 
-    console.log "TOP LEVEL NOTIFY", fromNamespace, path, newState
     response =
       handle: (component, params, plan, nextHandler) =>
         notifyOpts = extend true, {}, opts
         notifyOpts.preventNotify = true
         notifyOpts.fromNamespace = fromNamespace
-        console.log "NOTIFY HANDLE", component.namespace, fromNamespace, notifyOpts.target
         component.planResolution oldState, newState, diffs, notifyOpts, (err, newPlan) ->
           plan = [plan..., newPlan...]
           callback null, plan
@@ -59,7 +57,6 @@ class ComponentManager
     @router.handle request, response, (err) ->
       if hasCalledBack is false
         hasCalledBack = true
-        console.log "UNHANDLED STATE CHANGE EVENT", request.url
         callback err, plan
 
   flattenObject: (ob) ->
