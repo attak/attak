@@ -108,6 +108,10 @@ Attak =
                 console.log "INVOKE RESULTS", err, data
                 nextProcessor err
           , (err) ->
-            callback err
+            if opts.simulation
+              if opts.services['ATTAK:Static'].endpoint is undefined and opts.services['ATTAK:API'].endpoint is undefined
+                callback err
+            else
+              callback err
 
 module.exports = Attak
