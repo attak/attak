@@ -1,12 +1,22 @@
+fs = require 'fs'
 AWS = require 'aws-sdk'
 async = require 'async'
 extend = require 'extend'
+nodePath = require 'path'
 AWSUtils = require '../aws'
+staticHost = require 'node-static'
 BaseComponent = require './base_component'
 
 class Static extends BaseComponent
   namespace: 'static'
   dependencies: ['name']
+
+  simulation:
+    services: ->
+      'ATTAK:Static':
+        handlers:
+          'GET /:staticName': @handleRequest
+          'GET /:staticName/*': @handleRequest
 
   create: (path, newDefs, opts) ->
     # Creating a new name is a noop
@@ -20,9 +30,7 @@ class Static extends BaseComponent
         state.static = extend true, state.static,
           "#{staticName}": newDefs
 
-        console.log "STATE BEFORE STATIC", state
         AWSUtils.setupStatic state, staticName, opts, (err, results) ->
-          console.log "SETUP STATIC RESULTS"
           done err, state
     ]
 
@@ -35,5 +43,19 @@ class Static extends BaseComponent
           done null, state
       }
     ]
+
+  handleRequest: (state, opts, req, res) ->
+    staticName = req.params.staticName || 'default'
+
+    path = req.url.split("/#{staticName}")[1]
+    workingDir = opts.workingDir || process.cwd()
+    console.log "HANDLE STATIC FILE REQUEST", path
+    console.log "WHAT IS STATE", staticName, state.static[staticName].dir, state
+
+    staticDir = nodePath.resolve workingDir, state.static[staticName].dir
+    fullPath = "#{staticDir}/#{path}"
+
+    stream = fs.createReadStream fullPath
+    stream.pipe res
 
 module.exports = Static

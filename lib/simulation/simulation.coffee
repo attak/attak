@@ -13,7 +13,6 @@ dynalite = require 'dynalite'
 AWSUtils = require '../aws'
 AttakProc = require 'attak-processor'
 kinesalite = require 'kinesalite'
-staticHost = require 'node-static'
 TopologyUtils = require '../topology'
 ServiceManager = require './service_manager'
 
