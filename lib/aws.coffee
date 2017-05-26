@@ -183,6 +183,7 @@ AWSUtils =
   setupBucket: (bucketName, opts, callback) ->
     s3 = new AWS.S3
       region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:S3'].endpoint
 
     params =
       Bucket: bucketName
@@ -258,6 +259,7 @@ AWSUtils =
     log "SETUP BUCKET POLICY", bucketName
     s3 = new AWS.S3
       region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:S3'].endpoint
 
     environment = opts.environment || 'development'
     policyName = "static-access-#{topology.name}-#{environment}"
@@ -276,9 +278,14 @@ AWSUtils =
 
       log "CREATING STATIC ACCESS POLICY", policyName, policyDoc
 
-      s3.putBucketPolicy params, (err, results) ->
-        log "CREATE STATIC POLICY RESULTS", err, results
-        callback err, results.Arn
+      s3.putBucketPolicy params
+        .build ->
+          if opts.services['AWS:S3'].endpoint
+            @httpRequest.endpoint.hostname = url.parse(opts.services['AWS:S3'].endpoint).hostname
+            @httpRequest.endpoint.host = url.parse(opts.services['AWS:S3'].endpoint).host
+        .send (err, results) ->
+          log "CREATE STATIC POLICY RESULTS", err, results, opts.services['AWS:S3'].endpoint
+          callback err, results.Arn
 
   setupInvocationPolicies: (topology, opts, roleArn, callback) ->
     if topology.static.permissions?.invoke is undefined
@@ -344,6 +351,7 @@ AWSUtils =
   uploadDir: (bucketName, staticDir, opts, callback) ->
     s3 = new AWS.S3
       region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:S3'].endpoint
 
     log "UPLOADING STATIC FILES FROM", staticDir
 
@@ -359,14 +367,15 @@ AWSUtils =
         '!.DS_Store'
       ]
 
-    log "WRITING TO BUCKET", bucketName
-
     params =
       key: opts.accessKey
       acl: 'public-read'
       secret: opts.secretKey
       bucket: bucketName
+      endpoint: opts.services['AWS:S3'].endpoint
       concurrency: 16
+
+    log "WRITING TO BUCKET", bucketName, params
 
     uploader = s3sync(db, params).on 'data', (file) ->
       log "UPLOADING #{file.fullPath} -> #{file.url}"

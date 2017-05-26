@@ -1,4 +1,5 @@
 fs = require 'fs'
+url = require 'url'
 AWS = require 'aws-sdk'
 async = require 'async'
 extend = require 'extend'
@@ -15,8 +16,11 @@ class Static extends BaseComponent
     services: ->
       'ATTAK:Static':
         handlers:
-          'GET /:staticName': @handleRequest
-          'GET /:staticName/*': @handleRequest
+          'GET /:staticName': @handleStaticRequest
+          'GET /:staticName/*': @handleStaticRequest
+      'AWS:S3':
+        handlers:
+          'ALL *': @handleS3Request
 
   create: (path, newDefs, opts) ->
     # Creating a new name is a noop
@@ -44,18 +48,32 @@ class Static extends BaseComponent
       }
     ]
 
-  handleRequest: (state, opts, req, res) ->
-    staticName = req.params.staticName || 'default'
+  handleS3Request: (state, opts, req, res) ->    
+    s3Endpoint = opts.services['AWS:S3'].endpoint
+    if req.headers.host isnt url.parse(s3Endpoint).host
+      res.send ""
+    else
+      staticName = req.params.staticName
+      if staticName is undefined and req.headers.referer?
+        actualPath = req.headers.referer.split(s3Endpoint)[1]
+        staticName = actualPath?.split('/')[0]
 
-    path = req.url.split("/#{staticName}")[1]
-    workingDir = opts.workingDir || process.cwd()
-    console.log "HANDLE STATIC FILE REQUEST", path
-    console.log "WHAT IS STATE", staticName, state.static[staticName].dir, state
+      staticName = staticName || 'default'
 
-    staticDir = nodePath.resolve workingDir, state.static[staticName].dir
-    fullPath = "#{staticDir}/#{path}"
+      path = req.url.split("/#{staticName}")[1] || req.url
+      if path[0] is '/'
+        path = path.slice 1, path.length
 
-    stream = fs.createReadStream fullPath
-    stream.pipe res
+      workingDir = opts.workingDir || process.cwd()
+
+      staticDir = nodePath.resolve workingDir, state.static[staticName].dir
+      fullPath = "#{staticDir}/#{path}"
+
+      if fs.existsSync(fullPath) and fs.lstatSync(fullPath).isFile()
+        stream = fs.createReadStream fullPath
+        stream.pipe res
+      else
+        res.status 404
+          .send 'not found'
 
 module.exports = Static

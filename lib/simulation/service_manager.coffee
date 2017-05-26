@@ -1,3 +1,4 @@
+S3 = require './services/S3'
 API = require './services/api'
 IAM = require './services/iam'
 async = require 'async'
@@ -15,6 +16,7 @@ class ServiceManager
 
   setup: (state, opts, configs, callback) ->
     @services = [
+      new S3 @
       new API @
       new IAM @
       new AWSAPI @
