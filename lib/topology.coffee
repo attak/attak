@@ -78,8 +78,8 @@ TopologyUtils =
 
     return topology
 
-  getProcessor: (program, topology, name) ->
-    workingDir = program.cwd || process.cwd()
+  getProcessor: (opts, topology, name) ->
+    workingDir = opts.cwd || process.cwd()
 
     if topology.processor
       procData = topology.processor name
@@ -109,7 +109,7 @@ TopologyUtils =
 
     switch loading.type
       when 'path'
-        loading.impl = program.processor || require nodePath.resolve(workingDir, loading.path)
+        loading.impl = opts.processor || require nodePath.resolve(workingDir, loading.path)
 
     return loading
 
