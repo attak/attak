@@ -109,7 +109,7 @@ TopologyUtils =
 
     switch loading.type
       when 'path'
-        loading.impl = program.processor || require nodePath.resolve(workingDir, source)
+        loading.impl = program.processor || require nodePath.resolve(workingDir, loading.path)
 
     return loading
 
