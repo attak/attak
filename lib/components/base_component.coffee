@@ -153,7 +153,7 @@ class BaseComponent
       @executePlan currentState, newState, diffs, plan, opts, (err, finalState, path) =>
         callback err, finalState
 
-  executePlan: (currentState, newState, diffs, plan, opts, callback) ->    
+  executePlan: (currentState, newState, diffs, plan, opts, callback) ->
     async.eachSeries plan, (item, nextItem) =>
       try
         item.run currentState, (err, changedState={}) =>
@@ -227,12 +227,13 @@ class BaseComponent
     async.eachSeries diffs, (diff, nextDiff) =>
       diffPlan = @handleDiff diff, opts
       for item in diffPlan
+        item.diffs = [diff]
         item.source = @
         item.group = item.group || opts.group
       
       fromNamespace = opts.fromNamespace || @namespace
       fullPath = diff.path || []
-      @manager.notifyChange @namespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) ->
+      @manager.notifyChange @namespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) =>
         plan = [plan..., diffPlan...]
         nextDiff()
     , (err) =>
@@ -246,6 +247,7 @@ class BaseComponent
       plan = @handleDiffs currentState, newState, diffs, opts
       for planItem in plan
         planItem.source = @
+        planItem.diffs = diffs
 
       async.each diffs, (diff, next) =>
         fromNamespace = opts.fromNamespace || @namespace

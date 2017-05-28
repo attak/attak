@@ -27,7 +27,6 @@ class Static extends BaseComponent
     [
       msg: 'setup static hosting'
       run: (state, done) ->
-        console.log "CREATE STATIC HOSTING", path, newDefs, state
         [namespace, args...] = path
         [staticName, staticArgs...] = args
 
@@ -43,7 +42,6 @@ class Static extends BaseComponent
       {
         msg: 'remove static hosting'
         run: (state, done) ->
-          console.log "REMOVING STATIC HOSTING", path[0], oldDefs
           done null, state
       }
     ]
