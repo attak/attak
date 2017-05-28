@@ -13,7 +13,7 @@ class ComponentManager
   add: (component) ->
     @components[component.guid] = component
     @listeners[component.guid] = (req, res, next) =>
-      plan = req.body
+      plan = req.body.plan
       params = req.params
 
       res.handle component, params, plan, (err, results) =>
