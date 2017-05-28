@@ -5,6 +5,7 @@ BaseComponent = require './base_component'
 class Name extends BaseComponent
   namespace: 'name'
   required: true
+  dependencies: ['hooks']
 
   create: (path, newDefs, opts) ->
     # Creating a new name is a noop
