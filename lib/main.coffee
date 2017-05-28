@@ -64,6 +64,8 @@ Attak =
   deploy: (opts, callback) ->
     topology = TopologyUtils.loadTopology opts
 
+    opts.report = opts.report || SimulationUtils.defaultReport
+
     opts.startTime = new Date
     opts.environment = opts.environment || 'development'
 
