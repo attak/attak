@@ -38,8 +38,8 @@ class ComponentManager
         notifyOpts = extend true, {}, opts
         notifyOpts.preventNotify = true
         notifyOpts.fromNamespace = fromNamespace
-        component.planResolution oldState, newState, diffs, notifyOpts, (err, newPlan) ->
-          plan = [plan..., newPlan...]
+        component.planResolution oldState, newState, diffs, notifyOpts, plan, (err, newPlan) ->
+          plan = newPlan
           callback null, plan
 
     request =

@@ -239,8 +239,8 @@ class BaseComponent
     , (err) =>
       callback err, plan
 
-  planResolution: (currentState, newState, diffs=[], opts, callback) ->
-    plan = []
+  planResolution: (currentState, newState, diffs=[], opts, [startPlan]..., callback) ->
+    plan = startPlan || []
     opts.fullState = @loadState()
     
     if @handleDiffs
