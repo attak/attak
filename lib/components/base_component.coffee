@@ -67,6 +67,9 @@ class BaseComponent
     @clean newState
 
     differences = Differ.diff currentState, newState
+    for diff in differences
+      diff.namespace = @namespace
+
     @resolveState currentState, newState, differences, opts, (err, finalState) =>
       callback err
 
@@ -233,8 +236,8 @@ class BaseComponent
       
       fromNamespace = opts.fromNamespace || @namespace
       fullPath = diff.path || []
-      @manager.notifyChange @namespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, diffPlan) =>
-        plan = [plan..., diffPlan...]
+      @manager.notifyChange fromNamespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, newPlan) =>
+        plan = newPlan
         nextDiff()
     , (err) =>
       callback err, plan
@@ -252,7 +255,7 @@ class BaseComponent
       async.each diffs, (diff, next) =>
         fromNamespace = opts.fromNamespace || @namespace
         fullPath = [(diff.path || [])...]
-        @manager.notifyChange @namespace, fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
+        @manager.notifyChange fromNamespace, fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
           plan = newPlan
           next()
       , (err) =>

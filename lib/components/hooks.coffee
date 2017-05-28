@@ -14,7 +14,7 @@ class Hooks extends BaseComponent
     plan = plan || []
 
     if opts.fromNamespace in [null, undefined]
-      plan = [{
+      newPlan = [{
         msg: 'setup state hooks'
         run: (state, done) ->
           if diffs[0]?.rhs
@@ -48,12 +48,11 @@ class Hooks extends BaseComponent
           done null, state
       }, plan...]
 
-      return callback null, plan || []
+      callback null, newPlan
 
     else
       for diff in diffs
-        fullpath = [opts.fromNamespace, diff.path...]
-        console.log "PLAN RESOLUTION HOOK", fullpath
+        fullpath = [diff.path...]
 
       callback null, plan || []
 

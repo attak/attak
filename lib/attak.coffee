@@ -41,9 +41,10 @@ class ATTAK extends BaseComponent
     async.eachSeries keys, (key, next) =>
       component = @children[key]
       target = newState[key] || {}
+      current = currentState[key] || {}
 
       runSetState = (args..., done) =>
-        component.setState currentState, target, opts, (err, results) =>
+        component.setState current, target, opts, (err, results) =>
           extend true, currentState, @loadState()
           done err
 
