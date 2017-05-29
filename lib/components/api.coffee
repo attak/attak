@@ -64,7 +64,7 @@ class API extends BaseComponent
                 gateway: results.gateway
                 deployment: results.deployment
 
-              done null, state
+              done err, state
           else
             console.log "API CHANGE THAT ISNT FROM API", path, newDefs
       }

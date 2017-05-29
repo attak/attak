@@ -40,7 +40,7 @@ class ComponentManager
         notifyOpts.fromNamespace = fromNamespace
         component.planResolution oldState, newState, diffs, notifyOpts, plan, (err, newPlan) ->
           plan = newPlan
-          callback null, plan
+          callback err, plan
 
     request =
       method: 'POST'

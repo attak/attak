@@ -157,19 +157,47 @@ class BaseComponent
       @executePlan currentState, newState, diffs, plan, opts, (err, finalState, path) =>
         callback err, finalState
 
-  executePlan: (currentState, newState, diffs, plan, opts, callback) ->
-    async.eachSeries plan, (item, nextItem) =>
-      try
+  executeItem: (item, currentState, newState, diffs, plan, opts, callback) ->
+    async.waterfall [
+      (done) =>
+        if item.before
+          async.eachSeries item.before || [], (beforeFn, nextBefore) =>
+            beforeFn currentState, (err, changedState={}) =>
+              currentState = extend true, currentState, changedState
+              nextBefore err
+          , (err) ->
+            done err
+        else
+          done()
+      (done) =>
         item.run currentState, (err, changedState={}) =>
           currentState = extend true, currentState, changedState
           @saveState changedState
-          nextItem err
-      catch err
-        console.log "CAUGHT EXCEPTION", err
-        nextItem err
+          done err
+      (done) =>
+        if item.after
+          async.eachSeries item.after || [], (afterFn, nextAfter) =>
+            afterFn currentState, (err, changedState={}) =>
+              currentState = extend true, currentState, changedState
+              nextAfter err
+          , (err) ->
+            done err
+        else
+          done()
+    ], (err) =>
+      callback err
+
+  executePlan: (currentState, newState, diffs, plan, opts, callback) ->
+    async.eachSeries plan, (item, nextItem) =>
+      promise = new Promise (resolve, reject) =>
+        @executeItem item, currentState, newState, diffs, plan, opts, (err) =>
+          if err then return reject err
+          resolve()
+
+      promise.then (results) -> nextItem()
+      promise.catch nextItem
     , (err) =>
       if err
-        console.log "CAUGHT ERR DURING ITEM", err
         return callback err
 
       callback err
@@ -214,7 +242,7 @@ class BaseComponent
       getPlan = (results..., done) =>
         child.planResolution currentState, newState[childName], config.diffs, opts, plan, (err, newPlan) ->
           plan = newPlan
-          done null, plan
+          done err, plan
 
       if child.dependencies
         asyncItems[config.child.namespace] = [child.dependencies..., getPlan]
@@ -244,58 +272,70 @@ class BaseComponent
       callback err, plan
 
   planResolution: (currentState, newState, diffs=[], opts, [startPlan]..., callback) ->
-    plan = startPlan || []
-    opts.fullState = @loadState()
-    
-    if @handleDiffs
-      diffPlan = @handleDiffs currentState, newState, diffs, opts
-      for planItem in diffPlan
-        planItem.source = @
-        planItem.diffs = diffs
+    promise = new Promise (resolve, reject) =>
 
-      plan = [plan..., diffPlan...]
+      plan = startPlan || []
+      opts.fullState = @loadState()
+      
+      if @handleDiffs
+        diffPlan = @handleDiffs currentState, newState, diffs, opts
+        for planItem in diffPlan
+          planItem.source = @
+          planItem.diffs = diffs
 
-      async.each diffs, (diff, next) =>
-        fromNamespace = opts.fromNamespace || @namespace
-        fullPath = diff.path || []
-        @manager.notifyChange fromNamespace, fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
-          plan = newPlan
-          next err
-      , (err) =>
-        callback err, plan
-    else
-      if diffs.length is 0
-        return callback null, plan
+        plan = [plan..., diffPlan...]
 
-      childDiffs = {}
-      diffsForThis = []
-      for diff in diffs
-        childPath = diff.path?[0]
-        if childPath and @children?[childPath]
-          if childDiffs[childPath] is undefined
-            childDiffs[childPath] =
-              child: @children[childPath]
-              diffs: [diff]
+        async.each diffs, (diff, next) =>
+          fromNamespace = opts.fromNamespace || @namespace
+          fullPath = diff.path || []
+          @manager.notifyChange fromNamespace, fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) =>
+            plan = newPlan
+            next err
+        , (err) =>
+          if err then return reject err
+
+          resolve plan
+      else
+        if diffs.length is 0
+          return resolve plan
+
+        childDiffs = {}
+        diffsForThis = []
+        for diff in diffs
+          childPath = diff.path?[0]
+          if childPath and @children?[childPath]
+            if childDiffs[childPath] is undefined
+              childDiffs[childPath] =
+                child: @children[childPath]
+                diffs: [diff]
+            else
+              childDiffs[childPath].diffs.push diff
           else
-            childDiffs[childPath].diffs.push diff
-        else
-          diffsForThis.push diff
+            diffsForThis.push diff
 
-      async.waterfall [
-        (done) =>
-          if Object.keys(childDiffs).length > 0
-            @planChildResolutions currentState, newState, childDiffs, opts, done
-          else
-            done null, []
-        (childPlans, done) =>
-          if diffsForThis.length > 0
-            @planComponentResolutions currentState, newState, diffsForThis, opts, (err, componentPlans) ->
-              done err, childPlans, componentPlans
-          else
-            done null, childPlans, []
-      ], (err, childPlans, componentPlans) =>
-        plan = [plan..., childPlans..., componentPlans...]
-        callback err, plan
+        async.waterfall [
+          (done) =>
+            if Object.keys(childDiffs).length > 0
+              @planChildResolutions currentState, newState, childDiffs, opts, done
+            else
+              done null, []
+          (childPlans, done) =>
+            if diffsForThis.length > 0
+              @planComponentResolutions currentState, newState, diffsForThis, opts, (err, componentPlans) ->
+                done err, childPlans, componentPlans
+            else
+              done null, childPlans, []
+        ], (err, childPlans, componentPlans) =>
+          if err then return reject err
+
+          plan = [plan..., childPlans..., componentPlans...]
+          resolve plan
+
+    promise.catch (err) ->
+      callback err
+
+    promise.then (results) ->
+      callback null, results
 
   getSimulationServices: () ->
     services = {}

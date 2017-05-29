@@ -92,7 +92,7 @@ class Processors extends BaseComponent
               id: results.FunctionArn
 
           state = extend true, state, addedState
-          done null, state
+          done err, state
 
     ]
 
