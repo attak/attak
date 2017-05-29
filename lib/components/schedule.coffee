@@ -29,18 +29,20 @@ class Schedule extends BaseComponent
         msg: 'create new schedule item'
         run: (state, done) ->
           console.log "CREATING SCHEDULE", path, newDefs
-          [namespace, args...] = path
-          [scheduleName, scheduleArgs...] = args
+          async.forEachOf newDefs, (defs, scheduleName, next) ->
 
-          state = extend true, state,
-            schedule:
-              "#{scheduleName}": newDefs
-
-          AWSUtils.setupSchedule state, opts, (err, results) ->
             state = extend true, state,
               schedule:
-                "#{scheduleName}":
-                  id: results
+                "#{scheduleName}": defs
+
+            AWSUtils.setupSchedule state, opts, (err, results) ->
+              state = extend true, state,
+                schedule:
+                  "#{scheduleName}":
+                    id: results
+
+              next err          
+          , (err) ->
             done err, state
       }
     ]
