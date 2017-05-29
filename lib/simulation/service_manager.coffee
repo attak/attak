@@ -4,6 +4,7 @@ IAM = require './services/iam'
 async = require 'async'
 extend = require 'extend'
 AWSAPI = require './services/AWS_API'
+Dynamo = require './services/dynamo'
 Streams = require './services/streams'
 Gateway = require './services/gateway'
 StaticHosting = require './services/static_hosting'
@@ -20,6 +21,7 @@ class ServiceManager
       new API @
       new IAM @
       new AWSAPI @
+      new Dynamo @
       new Streams @
       new Gateway @
       new StaticHosting @
