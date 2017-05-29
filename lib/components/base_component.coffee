@@ -134,7 +134,7 @@ class BaseComponent
 
   handleDiff: (diff, opts) ->
     fromNamespace = opts.fromNamespace || @namespace
-    fullPath = [fromNamespace, (diff.path || [])...]
+    fullPath = [(diff.path || [])...]
 
     switch diff.kind
       when 'N'
@@ -153,6 +153,7 @@ class BaseComponent
 
     @planResolution currentState, newState, diffs, opts, (err, plan) =>
       if err then console.log "GOT PLAN ERR", err
+
       @executePlan currentState, newState, diffs, plan, opts, (err, finalState, path) =>
         callback err, finalState
 
@@ -210,9 +211,9 @@ class BaseComponent
     async.eachOfSeries childDiffs, (config, childName, nextChild) =>
       child = config.child
       
-      getPlan = (results..., done) ->
-        child.planResolution currentState, newState[childName], config.diffs, opts, (err, childPlan) ->
-          plan = plan.concat childPlan
+      getPlan = (results..., done) =>
+        child.planResolution currentState, newState[childName], config.diffs, opts, plan, (err, newPlan) ->
+          plan = newPlan
           done null, plan
 
       if child.dependencies
@@ -222,7 +223,7 @@ class BaseComponent
       
       nextChild()
     , (err) =>
-      async.auto asyncItems, (err) ->
+      async.auto asyncItems, 1, (err) ->
         callback err, plan
   
   planComponentResolutions: (currentState, newState, diffs, opts, callback) ->
@@ -238,7 +239,7 @@ class BaseComponent
       fullPath = diff.path || []
       @manager.notifyChange fromNamespace, fullPath, diffPlan, currentState, newState, [diff], opts, (err, newPlan) =>
         plan = newPlan
-        nextDiff()
+        nextDiff err
     , (err) =>
       callback err, plan
 
@@ -247,17 +248,19 @@ class BaseComponent
     opts.fullState = @loadState()
     
     if @handleDiffs
-      plan = @handleDiffs currentState, newState, diffs, opts
-      for planItem in plan
+      diffPlan = @handleDiffs currentState, newState, diffs, opts
+      for planItem in diffPlan
         planItem.source = @
         planItem.diffs = diffs
 
+      plan = [plan..., diffPlan...]
+
       async.each diffs, (diff, next) =>
         fromNamespace = opts.fromNamespace || @namespace
-        fullPath = [(diff.path || [])...]
+        fullPath = diff.path || []
         @manager.notifyChange fromNamespace, fullPath, plan, currentState, newState, diffs, opts, (err, newPlan) ->
           plan = newPlan
-          next()
+          next err
       , (err) =>
         callback err, plan
     else
@@ -280,10 +283,16 @@ class BaseComponent
 
       async.waterfall [
         (done) =>
-          @planChildResolutions currentState, newState, childDiffs, opts, done
+          if Object.keys(childDiffs).length > 0
+            @planChildResolutions currentState, newState, childDiffs, opts, done
+          else
+            done null, []
         (childPlans, done) =>
-          @planComponentResolutions currentState, newState, diffsForThis, opts, (err, componentPlans) ->
-            done err, childPlans, componentPlans
+          if diffsForThis.length > 0
+            @planComponentResolutions currentState, newState, diffsForThis, opts, (err, componentPlans) ->
+              done err, childPlans, componentPlans
+          else
+            done null, childPlans, []
       ], (err, childPlans, componentPlans) =>
         plan = [plan..., childPlans..., componentPlans...]
         callback err, plan

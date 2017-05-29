@@ -48,29 +48,23 @@ class API extends BaseComponent
         run: (state, done) ->
           console.log "CREATING NEW API", path, newDefs, state
           [component, args...] = path
+          
           if component is 'api'
-            [property, val] = args
-            switch property
-              when 'handler'
-                gatewayOpts =
-                  name: "#{state.name}-#{opts.environment || 'development'}-gateway"
-                  handler: newDefs
+            gatewayOpts =
+              name: "#{state.name}-#{opts.environment || 'development'}-gateway"
+              handler: newDefs.handler || state.gateway?.handler
 
-                console.log "SETUP CONFIG", gatewayOpts
-                AWSUtils.setupGateway state, gatewayOpts, opts, (err, results) ->
-                  console.log "GATEWAY RESULTS", err, results
-                  state.api = extend true, state.api,
-                    name: gatewayOpts.name
-                    handler: newDefs
-                    resources:
-                      root: results.root
-                      proxy: results.proxy
-                    gateway: results.gateway
-                    deployment: results.deployment
+            AWSUtils.setupGateway state, gatewayOpts, opts, (err, results) ->
+              state.api = extend true, state.api,
+                name: gatewayOpts.name
+                handler: newDefs.handler
+                resources:
+                  root: results.root
+                  proxy: results.proxy
+                gateway: results.gateway
+                deployment: results.deployment
 
-                  done null, state
-              else
-                console.log "UNKNOWN API PROPERTY CHANGE EVENT", property
+              done null, state
           else
             console.log "API CHANGE THAT ISNT FROM API", path, newDefs
       }

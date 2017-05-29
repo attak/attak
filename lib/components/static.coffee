@@ -27,13 +27,13 @@ class Static extends BaseComponent
     [
       msg: 'setup static hosting'
       run: (state, done) ->
-        [namespace, args...] = path
-        [staticName, staticArgs...] = args
 
-        state.static = extend true, state.static,
-          "#{staticName}": newDefs
+        state.static = extend true, state.static, newDefs
 
-        AWSUtils.setupStatic state, staticName, opts, (err, results) ->
+        async.forEachOf newDefs, (defs, staticName, next) ->
+          AWSUtils.setupStatic state, staticName, opts, (err, results) ->
+            next err
+        , (err) ->
           done err, state
     ]
 

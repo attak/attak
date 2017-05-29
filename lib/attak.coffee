@@ -31,36 +31,6 @@ class ATTAK extends BaseComponent
         path: [key]
       @addChild key, child
 
-  setState: (currentState, newState, opts, callback) ->
-    keys = Object.keys(currentState)
-    for key, val of newState
-      if key not in keys
-        keys.push key
-
-    asyncItems = {}
-    async.eachSeries keys, (key, next) =>
-      component = @children[key]
-      target = newState[key] || {}
-      current = currentState[key] || {}
-
-      runSetState = (args..., done) =>
-        component.setState current, target, opts, (err, results) =>
-          extend true, currentState, @loadState()
-          done err
-
-      if component is undefined
-        console.log "UNKNOWN COMPONENT", key, newState, keys
-
-      if component.dependencies
-        asyncItems[key] = [component.dependencies..., runSetState]
-      else
-        asyncItems[key] = runSetState
-
-      next()
-    , (err) =>
-      async.auto asyncItems, 1, (err) ->
-        callback err, currentState
-
   handleDiff: (state, diff, opts) ->
     async.forEachOf diff.rhs, (val, key, next) =>
       component = @children[key]
