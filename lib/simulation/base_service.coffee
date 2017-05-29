@@ -16,7 +16,7 @@ class BaseService
     @app = express()
     
     @app.use (req, res, next) =>
-      console.log "SERVICE REQ #{@constructor.name} #{req.method} #{req.url}", req.body
+      console.log "SERVICE REQ #{@constructor.name} #{req.method} #{req.url}", req.body || ''
       next()
 
     unless @disableParsing
