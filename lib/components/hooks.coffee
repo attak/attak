@@ -18,8 +18,6 @@ class Hooks extends BaseComponent
     D: 'delete'
 
   handleHook: (hook, item, state, opts, callback) ->
-    console.log "HOOK HANDLING", hook
-
     workingDir = opts.cwd || process.cwd()
     fullPath = nodePath.resolve workingDir, hook.src
     impl = require fullPath
