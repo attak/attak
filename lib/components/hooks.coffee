@@ -1,6 +1,7 @@
 AWS = require 'aws-sdk'
 async = require 'async'
 extend = require 'extend'
+nodePath = require 'path'
 BaseComponent = require './base_component'
 
 class Hooks extends BaseComponent
@@ -10,50 +11,69 @@ class Hooks extends BaseComponent
     ':hookName':
       handler: '*'
 
+  diffEvents:
+    A: 'add'
+    N: 'create'
+    E: 'update'
+    D: 'delete'
+
+  handleHook: (hook, item, state, opts, callback) ->
+    console.log "HOOK HANDLING", hook
+
+    workingDir = opts.cwd || process.cwd()
+    fullPath = nodePath.resolve workingDir, hook.src
+    impl = require fullPath
+
+    impl hook, item, state, opts, (err) ->
+      callback err
+
+  findFirstAndLast: (plan, path) ->
+    matches = []
+    for item in plan
+      doesMatch = false
+      
+      for diff in item.diffs
+        doesDiffMatch = true
+        for pathItem, index in path
+          if diff.path[index] and diff.path[index] isnt path[index] and path[index] isnt '*'
+            doesDiffMatch = false
+
+        if doesDiffMatch
+          doesMatch = true
+
+      if doesMatch
+        matches.push item
+
+    if matches.length is 0
+      return []
+    else
+      return [matches[0], matches[matches.length - 1]]
+
+  addHooksToPlan: (plan, state, opts) ->
+    for item in plan
+      item.before = []
+      item.after = []
+
+    for hookName, hook of (state.hooks || {})
+      [first, last] = @findFirstAndLast plan, hook.path
+
+      stages = hook.stages || [hook.stage]
+
+      if 'before' in stages
+        first?.before.push (state, done) => @handleHook hook, first, state, opts, done
+      if 'after' in stages
+        last?.after.push (state, done) => @handleHook hook, last, state, opts, done
+
   planResolution: (currentState, newState, diffs=[], opts, [plan]..., callback) ->
     plan = plan || []
 
     if opts.fromNamespace in [null, undefined]
-      newPlan = [{
-        msg: 'setup state hooks'
-        run: (state, done) ->
-          if diffs[0]?.rhs
-            [hookName, hookArgs...] = diffs[0].path
+      currentState = extend true, currentState,
+        hooks: newState
 
-            if hookArgs.length > 0
-              state = extend true, state,
-                hooks:
-                  "#{hookName}": {}
-
-              assignTo = state.hooks[hookName]
-              for arg, index in hookArgs
-                if index is hookArgs.length - 1
-                  assignTo[arg] = diffs[0].rhs
-                else if assignTo[arg] is undefined
-                  assignTo[arg] = {}
-                  assignTo = assignTo[arg]
-                else
-                  assignTo = assignTo[arg]
-            else
-              state = extend true, state,
-                hooks:
-                  "#{hookName}": diffs[0].rhs
-
-            assignTo = state.hooks[hookName]
-            for arg in hookArgs
-              assignTo = assignTo[arg]
-
-            assignTo = diffs[0].rhs
-
-          done null, state
-      }, plan...]
-
-      callback null, newPlan
-
+      callback null, plan
     else
-      for diff in diffs
-        fullpath = [diff.path...]
-
+      @addHooksToPlan plan, currentState, opts
       callback null, plan || []
 
 module.exports = Hooks
