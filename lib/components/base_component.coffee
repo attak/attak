@@ -236,18 +236,20 @@ class BaseComponent
   planChildResolutions: (currentState, newState, childDiffs, opts, callback) ->
     plan = []
     asyncItems = {}
-    async.eachOfSeries childDiffs, (config, childName, nextChild) =>
-      child = config.child
+    async.eachOfSeries @children, (child, childName, nextChild) =>
+      config = childDiffs[childName]
       
       getPlan = (results..., done) =>
         child.planResolution currentState, newState[childName], config.diffs, opts, plan, (err, newPlan) ->
           plan = newPlan
           done err, plan
 
-      if child.dependencies
-        asyncItems[config.child.namespace] = [child.dependencies..., getPlan]
+      if config is undefined
+        asyncItems[child.namespace] = (results..., done) -> done()
+      else if child.dependencies
+        asyncItems[child.namespace] = [child.dependencies..., getPlan]
       else
-        asyncItems[config.child.namespace] = getPlan
+        asyncItems[child.namespace] = getPlan
       
       nextChild()
     , (err) =>
