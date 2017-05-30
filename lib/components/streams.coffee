@@ -113,8 +113,13 @@ class Streams extends BaseComponent
         AWSUtils.associateStream state, streamDefs, targetProcessor, opts, (err, associationResults) ->
           callback err, streamDefs, associationResults
 
-  invokeProcessor: (processorName, data, state, opts, callback) ->
+  invokeProcessor: (processorName, fullName, data, state, opts, callback) ->
     topology = TopologyUtils.loadTopology opts
+
+    services = {}
+    for serviceKey, service of opts.services
+      services[serviceKey] =
+        endpoint: service.endpoint 
     
     context =
       done: -> callback()
@@ -122,6 +127,8 @@ class Streams extends BaseComponent
       success: (results) -> callback null, results
       state: state
       topology: topology
+      services: services
+      functionName: fullName
 
     {impl} = TopologyUtils.getProcessor opts, topology, processorName
     handler = AttakProc.handler processorName, state, impl, opts
@@ -206,7 +213,8 @@ class Streams extends BaseComponent
         if streamDefs
           processorName = @getTargetProcessor state, req.body.StreamName
           data = JSON.parse new Buffer(req.body.Data, 'base64').toString()
-          @invokeProcessor processorName, data.data, state, opts, (err, results) ->
+          functionName = AWSUtils.getFunctionName state.name, processorName, opts.environment || 'development'
+          @invokeProcessor processorName, functionName, data.data, state, opts, (err, results) ->
             res.json {ok: true}
         else
           res.status 400

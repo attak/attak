@@ -70,12 +70,13 @@ class Processors extends BaseComponent
     [
       msg: 'resolve processor state'
       run: (state, done) ->
-        opts = extend opts,
+        deployOpts = extend true, {}, opts
+        deployOpts = extend true, deployOpts,
           name: state.name
           services: opts.services
           processors: newState
 
-        LambdaUtils.deployProcessors state, opts, (err, procDatas) ->
+        LambdaUtils.deployProcessors state, deployOpts, (err, procDatas) ->
           addedState =
             processors: {}
           
@@ -93,7 +94,6 @@ class Processors extends BaseComponent
 
           state = extend true, state, addedState
           done err, state
-
     ]
 
   handleInvoke: (state, opts, req, res) =>
@@ -108,14 +108,19 @@ class Processors extends BaseComponent
       fullName = splitPath[3]
       extendedName = fullName.split("-#{environment}")[0]
       processorName = extendedName.split("#{state.name}-")[1]
-      @invokeProcessor processorName, data, state, opts, (err, results) ->
+      @invokeProcessor processorName, fullName, data, state, opts, (err, results) ->
         if err
           res.status(500).send err
         else
-          res.send results.body
+          res.end results.body
 
-  invokeProcessor: (processorName, data, state, opts, callback) ->
+  invokeProcessor: (processorName, fullName, data, state, opts, callback) ->
     topology = TopologyUtils.loadTopology opts
+
+    services = {}
+    for serviceKey, service of opts.services
+      services[serviceKey] =
+        endpoint: service.endpoint 
     
     context =
       done: -> callback()
@@ -123,7 +128,8 @@ class Processors extends BaseComponent
       success: (results) -> callback null, results
       state: state
       topology: topology
-      services: opts.services
+      services: services
+      functionName: fullName
 
     {impl} = TopologyUtils.getProcessor opts, topology, processorName
     handler = AttakProc.handler processorName, state, impl, opts
