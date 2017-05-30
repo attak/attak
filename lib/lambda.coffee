@@ -40,6 +40,7 @@ LambdaUtils =
     environment = opts.environment || 'development'
 
     runnerPath = require('path').resolve (opts.cwd || process.cwd()), './attak_runner.js'
+    optsStr = JSON.stringify({region: opts.region, environment: environment})
 
     fs.writeFileSync runnerPath, """
       var procName = process.env.ATTAK_PROCESSOR_NAME
@@ -49,7 +50,7 @@ LambdaUtils =
         var attak = require('attak-processor')
         var topology = attak.utils.topology.loadTopology({})
         var loaded = attak.utils.topology.getProcessor({}, topology, procName)
-        var opts = #{JSON.stringify({region: opts.region, environment: environment})}
+        var opts = #{optsStr}
         exports.handler = attak.handler(procName, topology, loaded.impl, opts)
       
       } catch(err) {
