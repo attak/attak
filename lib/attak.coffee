@@ -10,6 +10,7 @@ class ATTAK extends BaseComponent
   namespace: 'ATTAK'
 
   defaultComponents:
+    db: require './components/db'
     api: require './components/api'
     name: require './components/name'
     hooks: require './components/hooks'

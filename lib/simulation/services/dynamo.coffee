@@ -2,7 +2,7 @@ nodePath = require 'path'
 dynalite = require 'dynalite'
 BaseService = require '../base_service'
 
-class S3 extends BaseService
+class DynamoDB extends BaseService
 
   paths: [
     'AWS:DynamoDB'
@@ -12,8 +12,8 @@ class S3 extends BaseService
     @port = opts.port || 44225
     @host = 'localhost'
     @endpoint = "http://#{@host}:#{@port}"
-    
-    workingDir = opts.cwd || program.cwd()
+
+    workingDir = opts.cwd || process.cwd()
 
     @dynaliteServer = dynalite
       path: nodePath.resolve workingDir, './.attak-dynamodb-sim'
@@ -21,4 +21,4 @@ class S3 extends BaseService
     @dynaliteServer.listen @port, (err) =>
       callback err
 
-module.exports = S3
+module.exports = DynamoDB

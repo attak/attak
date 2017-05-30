@@ -39,7 +39,6 @@ class ServiceManager
     settingUp = {}
     async.forEachOf configs, (config, serviceKey, next) =>
       service = @handlers[serviceKey]
-
       if service is undefined
         return next()
 
