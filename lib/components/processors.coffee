@@ -123,6 +123,7 @@ class Processors extends BaseComponent
       success: (results) -> callback null, results
       state: state
       topology: topology
+      services: opts.services
 
     {impl} = TopologyUtils.getProcessor opts, topology, processorName
     handler = AttakProc.handler processorName, state, impl, opts
