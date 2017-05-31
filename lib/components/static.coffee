@@ -60,7 +60,7 @@ class Static extends BaseComponent
 
       path = req.url.split("/#{staticName}")[1] || req.url
 
-      if path in ['', '/'] and state.static[staticName]?.homePath
+      if not req.headers.referer? and state.static[staticName]?.homePath
         path = state.static[staticName].homePath
 
       if path[0] is '/'
