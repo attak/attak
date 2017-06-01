@@ -132,7 +132,7 @@ class Processors extends BaseComponent
       functionName: fullName
 
     {impl} = TopologyUtils.getProcessor opts, topology, processorName
-    handler = AttakProc.handler processorName, state, impl, opts
+    handler = AttakProc.handler processorName, topology, impl, opts
     handler data, context, (err, results) ->
       callback err, results
 

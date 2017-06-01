@@ -102,10 +102,18 @@ TopologyUtils =
       loading =
         type: 'dynamic'
         impl: procData
-    else
+    else if procData?.handler is Function
+      loading =
+        type: 'dynamic'
+        impl: procData.handler
+    else if procData?.source or procData?.path
       loading =
         type: 'path'
-        path: procData.source || procData.path
+        path: procData.path
+    else
+      loading =
+        type: 'dynamic'
+        impl: procData
 
     switch loading.type
       when 'path'
