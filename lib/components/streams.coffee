@@ -49,30 +49,31 @@ class Streams extends BaseComponent
       {
         msg: "Create new stream"
         run: (state, done) =>
-          console.log "RUN CREATE STREAMS", path, defs
           if namespace is 'processors'
             [procName, procArgs...] = args
             streams = @getProcessorStreams state, procName
             async.eachSeries streams, ([streamName, streamDefs], nextStream) ->
-              @createStream state, streamName, defs, opts, (err, streamData, association) ->
+              @createStream state, streamName, defs[streamName], opts, (err, streamData, association) ->
                 if err then return done err
 
                 defs.id = streamData.arn
                 state.streams = extend true, state.streams,
-                  "#{streamData.name}": defs
+                  "#{streamData.name}": streamDefs
 
                 nextStream err
             , (err) ->
               done err, state
           else if namespace is 'streams'
-            [streamName, streamDefs] = args
-            @createStream state, streamName, defs, opts, (err, streamData, association) ->
-              if err then return done err
-              
-              defs.id = streamData.arn
-              state.streams = extend true, state.streams,
-                "#{streamData.name}": defs
+            async.forEachOf defs, (streamDefs, streamName, nextStream) =>
+              @createStream state, streamName, defs[streamName], opts, (err, streamData, association) =>
+                if err then return done err
+                
+                defs.id = streamData.arn
+                state.streams = extend true, state.streams,
+                  "#{streamData.name}": streamDefs
 
+                nextStream err
+            , (err) ->
               done err, state
       }
     ]
