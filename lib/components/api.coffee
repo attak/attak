@@ -46,7 +46,6 @@ class API extends BaseComponent
       {
         msg: 'Create new API'
         run: (state, done) ->
-          console.log "CREATING NEW API", path, newDefs, state
           [component, args...] = path
           
           if component is 'api'
@@ -82,7 +81,6 @@ class API extends BaseComponent
     ]
 
   handleCreateRestApis: (state, opts, req, res, done) ->
-    console.log "HANDLE CREATE REST API", req.url, req.body, req.headers
     allData = ""
     req.on 'data', (data) -> allData += data.toString()
     req.on 'end', ->
@@ -92,8 +90,6 @@ class API extends BaseComponent
       gateway =
         id: guid
         name: apiDefs.name
-
-      console.log "SENDING BACK GATEWAY DEFS", gateway
       
       state = extend true, state,
         api:
@@ -111,7 +107,6 @@ class API extends BaseComponent
     req.on 'data', (data) -> allData += data.toString()
     req.on 'end', ->
       resource = JSON.parse allData
-      console.log "HANDLE CREATE RESOURCE", req.params, resource
 
       if resource.pathPart.indexOf('proxy') isnt -1
         resourceType = 'proxy'
@@ -127,9 +122,7 @@ class API extends BaseComponent
       res.json state.api.resources.proxy
       done null, state
 
-  handleGetResources: (state, opts, req, res, done) ->
-    console.log 'HANDLE GET RESOURCES', req.params
-  
+  handleGetResources: (state, opts, req, res, done) ->  
     guid = uuid.v1()
     if state.api?.resources?.root?.id is undefined
       state = extend true, state,
@@ -150,8 +143,6 @@ class API extends BaseComponent
 
 
   handleGetMethod: (state, opts, req, res) ->
-    console.log "HANDLE handleGetMethod", req.params.parentResource in [state.api?.methods?.proxy?.id, state.api?.methods?.root?.id]
-
     if req.params.parentResource in [state.api?.methods?.proxy?.id, state.api?.methods?.root?.id]
 
       res.json
@@ -190,8 +181,6 @@ class API extends BaseComponent
         message: "Method not found"
 
   handlePutMethod: (state, opts, req, res) ->
-    console.log "HANDLE handlePutMethod", req.params, req.body
-
     res.json
       statusCode: '301'
       responseParameters:
@@ -215,7 +204,6 @@ class API extends BaseComponent
     res.json ok: true
 
   handleGetPolicy: (state, opts, req, res) ->
-    console.log "HANDLE GET POLICY", req.params
     environment = opts.environment || 'development'
     processorName = req.params.functionName.split(environment)[0]
     
