@@ -72,6 +72,9 @@ class Static extends BaseComponent
       fullPath = "#{staticDir}/#{path}"
 
       if fs.existsSync(fullPath) and fs.lstatSync(fullPath).isFile()
+        if state.static[staticName].corsAllow
+          res.setHeader("Access-Control-Allow-Origin", state.static[staticName].corsAllow)
+
         stream = fs.createReadStream fullPath
         stream.pipe res
       else

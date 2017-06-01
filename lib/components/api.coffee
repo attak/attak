@@ -58,6 +58,7 @@ class API extends BaseComponent
               state.api = extend true, state.api,
                 name: gatewayOpts.name
                 handler: newDefs.handler
+                corsAllow: newDefs.corsAllow
                 resources:
                   root: results.root
                   proxy: results.proxy
@@ -265,6 +266,9 @@ class API extends BaseComponent
       Payload: new Buffer JSON.stringify(event)
       FunctionName: functionName
       InvocationType: 'Event'
+
+    if state.api.corsAllow
+      res.setHeader("Access-Control-Allow-Origin", state.api.corsAllow);
 
     awsLambda.invoke params, (err, results) ->
       if err
