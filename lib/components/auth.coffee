@@ -79,10 +79,6 @@ class Auth extends BaseComponent
             <Path>/</Path>
             <Arn>arn:aws:iam::133713371337:role/#{data.RoleName}</Arn>
             <RoleName>#{data.RoleName}</RoleName>
-            <AssumeRolePolicyDocument>
-              {"Version":"2012-10-17","Statement":[{"Effect":"Allow",
-              "Principal":{"Service":["ec2.amazonaws.com"]},"Action":["sts:AssumeRole"]}]}
-            </AssumeRolePolicyDocument>
             <CreateDate>2012-05-08T23:34:01.495Z</CreateDate>
             <RoleId>#{randId}</RoleId>
           </Role>
