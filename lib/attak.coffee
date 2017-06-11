@@ -13,6 +13,7 @@ class ATTAK extends BaseComponent
     db: require './components/db'
     api: require './components/api'
     name: require './components/name'
+    auth: require './components/auth'
     hooks: require './components/hooks'
     static: require './components/static'
     streams: require './components/streams'

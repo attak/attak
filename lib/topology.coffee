@@ -76,6 +76,11 @@ TopologyUtils =
         topology.static =
           default: topology.static
 
+    if topology.auth
+      if topology.auth is true
+        topology.auth =
+          default: {}
+
     return topology
 
   getProcessor: (opts, topology, name) ->

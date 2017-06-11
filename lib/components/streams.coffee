@@ -5,7 +5,6 @@ extend = require 'extend'
 moment = require 'moment'
 AWSUtils = require '../aws'
 AttakProc = require 'attak-processor'
-Permissions = require './permissions'
 TopologyUtils = require '../topology'
 BaseComponent = require './base_component'
 
@@ -28,9 +27,6 @@ class Streams extends BaseComponent
       'AWS:Lambda':
         handlers:
           "POST /:apiVerison/event-source-mappings": @handleCreateEventSourceMapping
-      'AWS:IAM':
-        handlers:
-          "POST /": @handleGetUser
 
   init: (callback) ->
     callback()
@@ -231,24 +227,5 @@ class Streams extends BaseComponent
       res.json extend mapping,
         UUID: uuid.v1()
         LastModified: moment().format()
-
-  handleGetUser: (state, opts, req, res) ->
-    res.send """
-      <GetUserResponse xmlns="https://iam.amazonaws.com/doc/2010-05-08/">
-        <GetUserResult>
-          <User>
-            <UserId>133713371337</UserId>
-            <Path>/division_abc/subdivision_xyz/</Path>
-            <UserName>Bob</UserName>
-            <Arn>arn:aws:iam::123456789012:user/division_abc/subdivision_xyz/Bob</Arn>
-            <CreateDate>2013-10-02T17:01:44Z</CreateDate>
-            <PasswordLastUsed>2014-10-10T14:37:51Z</PasswordLastUsed>
-          </User>
-        </GetUserResult>
-        <ResponseMetadata>
-          <RequestId>7a62c49f-347e-4fc4-9331-6e8eEXAMPLE</RequestId>
-        </ResponseMetadata>
-      </GetUserResponse>
-    """
 
 module.exports = Streams

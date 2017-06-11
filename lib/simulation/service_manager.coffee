@@ -8,7 +8,9 @@ Dynamo = require './services/dynamo'
 Streams = require './services/streams'
 Gateway = require './services/gateway'
 StaticHosting = require './services/static_hosting'
+CognitoIdentity = require './services/cognito_identity'
 CloudWatchEvents = require './services/cloudwatch_events'
+CognitoServiceProvider = require './services/cognito_service_provider'
 
 class ServiceManager
 
@@ -25,7 +27,9 @@ class ServiceManager
       new Streams @
       new Gateway @
       new StaticHosting @
+      new CognitoIdentity @
       new CloudWatchEvents @
+      new CognitoServiceProvider @
     ]
 
     @handlers = {}

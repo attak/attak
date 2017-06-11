@@ -1,6 +1,7 @@
 fs = require 'fs'
 url = require 'url'
 AWS = require 'aws-sdk'
+str = require 'underscore.string'
 uuid = require 'uuid'
 chalk = require 'chalk'
 async = require 'async'
@@ -122,6 +123,62 @@ federatedPolicies =
         }]
       }
     """
+  allowUnauthenticated: (config) ->
+    """
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Federated": "cognito-identity.amazonaws.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+              "StringEquals": {
+                "cognito-identity.amazonaws.com:aud": "IDENTITY_POOL"
+              },
+              "ForAnyValue:StringLike": {
+                "cognito-identity.amazonaws.com:amr": "unauthenticated"
+              }
+            }
+          }
+        ]
+      }
+    """
+  authenticated: (config) ->
+    """
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Federated": "cognito-identity.amazonaws.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+              "StringEquals": {
+                "cognito-identity.amazonaws.com:aud": "IDENTITY_POOL"
+              },
+              "ForAnyValue:StringLike": {
+                "cognito-identity.amazonaws.com:amr": "authenticated"
+              }
+            }
+          }
+        ]
+      }
+    """
+  userPool: (config) ->
+    {
+      "PasswordPolicy": {
+        "MinimumLength": 8,
+        "RequireUppercase": true,
+        "RequireLowercase": true,
+        "RequireNumbers": true,
+        "RequireSymbols": true
+      }
+    }
 
 AWSUtils =
 
@@ -206,6 +263,7 @@ AWSUtils =
 
     iam = new AWS.IAM
       region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:IAM'].endpoint
 
     environment = opts.environment || 'development'
     roleName = "static-auth-#{topology.name}-#{environment}"
@@ -293,6 +351,7 @@ AWSUtils =
 
     lambda = new AWS.Lambda
       region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:Lambda'].endpoint
 
     splitArn = roleArn.split ':'
     accountId = splitArn[4]
@@ -392,6 +451,7 @@ AWSUtils =
   getApiByName: (name, opts, callback) ->
     gateway = new AWS.APIGateway
       region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:APIGateway'].endpoint
 
     gateway.getRestApis (err, results) ->
       if err then return callback(err)
@@ -403,6 +463,7 @@ AWSUtils =
   getApis: (opts={}, callback) ->
     gateway = new AWS.APIGateway
       region: opts.region || 'us-east-1'
+      endpoint: opts.services['AWS:APIGateway'].endpoint
 
     gateway.getRestApis (err, results) ->
       console.log "GET REST APIS", err, results
@@ -871,6 +932,21 @@ AWSUtils =
   getFunctionName: (topologyName, processorName, environment) ->
     "#{topologyName}-#{processorName}-#{environment}"
 
+  getUserPoolName: (topologyName, authName, environment) ->
+    "#{topologyName}-#{authName}-userpool-#{environment}"
+
+  getUserPoolClientName: (topologyName, authName, environment) ->
+    "#{topologyName}-#{authName}-userpool-client-#{environment}"
+
+  getIdentityPoolName: (topologyName, authName, environment) ->
+    str.classify "#{topologyName}-#{authName}-identitypool-#{environment}"
+  
+  getAuthdRoleName: (topologyName, authName, environment) ->
+    "#{topologyName}-#{authName}-authenticated-#{environment}"
+  
+  getUnauthRoleName: (topologyName, authName, environment) ->
+    "#{topologyName}-#{authName}-unauthenticated-#{environment}"
+
   createStream: (opts, topology, streamName, callback) ->
     streamOpts =
       ShardCount: opts?.shards || 1
@@ -1026,5 +1102,103 @@ AWSUtils =
       
     , (err) ->
       callback err, iterators
+
+  setupCognito: (authName, state, opts, callback) ->
+    region = opts.region || 'us-east-1'
+    environment = opts.environment || 'development'
+    log "SETUP COGNITO", region, environment, authName, state.auth[authName], opts.services['AWS:IAM'].endpoint, opts.services['AWS:CognitoIdentity'].endpoint, opts.services['AWS:CognitoIdentityServiceProvider'].endpoint
+    
+    iam = new AWS.IAM
+      region: region
+      endpoint: opts.services['AWS:IAM'].endpoint
+
+    cognitoIdentity = new AWS.CognitoIdentity
+      region: region
+      endpoint: opts.services['AWS:CognitoIdentity'].endpoint
+
+    cognitoServiceProvider = new AWS.CognitoIdentityServiceProvider
+      region: region
+      endpoint: opts.services['AWS:CognitoIdentityServiceProvider'].endpoint
+
+    async.waterfall [
+      (done) ->
+        poolName = AWSUtils.getIdentityPoolName state.name, authName, environment
+        params = 
+          AllowUnauthenticatedIdentities: opts.allowUnauthenticated || true
+          IdentityPoolName: poolName
+        
+        cognitoIdentity.createIdentityPool params, (err, results) ->
+          log "CREATE POOL RESULTS", err, results, params
+          done err, {identityPool: results}
+      
+      (data, done) ->
+        roleName = AWSUtils.getUnauthRoleName state.name, authName, environment
+        params =
+          RoleName: roleName
+          AssumeRolePolicyDocument: federatedPolicies.allowUnauthenticated()
+
+        iam.createRole params, (err, results) ->
+          log "CREATE UNAUTHD ROLE RESULTS", err, results, params
+          data.unauthdRole = results
+          done err, data
+
+      (data, done) ->
+        roleName = AWSUtils.getAuthdRoleName state.name, authName, environment
+        params =
+          RoleName: roleName
+          AssumeRolePolicyDocument: federatedPolicies.authenticated()
+
+        iam.createRole params, (err, results) ->
+          log "CREATE AUTHD ROLE RESULTS", err, results, params
+          data.authdRole = results
+          done err, data
+      
+      (data, done) ->
+        poolName = AWSUtils.getUserPoolName state.name, authName, environment
+        params =
+          PoolName: poolName
+          AutoVerifiedAttributes: ['email']
+          Policies: federatedPolicies.userPool()
+
+        cognitoServiceProvider.createUserPool params, (err, results) ->
+          log "CREATE USER POOL RESULTS", err, results, params
+          data.userPool = results.UserPool
+          done err, data
+
+      (data, done) ->
+        clientName = AWSUtils.getUserPoolClientName state.name, authName, environment
+        params =
+          ClientName: clientName
+          UserPoolId: data.userPool.Id
+          GenerateSecret: false
+
+        cognitoServiceProvider.createUserPoolClient params, (err, results) ->
+          log "CREATE POOL CLIENT RESULTS", err, results, params, data
+          done err, data
+      
+      (data, done) ->
+        poolName = AWSUtils.getIdentityPoolName state.name, authName, environment
+        params =
+          IdentityPoolId: data.identityPool.IdentityPoolId
+          IdentityPoolName: poolName
+          AllowUnauthenticatedIdentities: opts.allowUnauthenticated || true
+
+        cognitoIdentity.updateIdentityPool params, (err, results) ->
+          log "UPDATE IDENTITY POOL RESULTS", err, results, params
+          done err, data
+
+      (data, done) ->
+        params =
+          IdentityPoolId: data.identityPool.IdentityPoolId
+          Roles:
+            authenticated: data.authdRole.Role.Arn
+            unauthenticated: data.unauthdRole.Role.Arn
+
+        cognitoIdentity.setIdentityPoolRoles params, (err, results) ->
+          log "SET IDENTITY POOL ROLES", err, results, params
+          done err, data
+    ], (err) ->
+      console.log "ALL DONE", err
+      callback err
 
 module.exports = AWSUtils

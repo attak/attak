@@ -44,6 +44,7 @@
     "node-zip": "^1.1.1",
     "progress": "^2.0.0",
     "public-ip": "^2.3.3",
+    "query-string": "^4.3.4",
     "readdirp": "^2.1.0",
     "rimraf": "^2.6.1",
     "s3-sync-aws": "git+https://git@github.com/attak/s3-sync-aws.git",
@@ -53,6 +54,7 @@
     "tape": "^4.6.3",
     "tapes": "^4.1.0",
     "through2": "^2.0.3",
+    "underscore.string": "^3.3.4",
     "uuid": "^3.0.1",
     "wrtc": "0.0.61",
     "yargs": "^7.1.0"
