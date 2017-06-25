@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "attak-processor": "git+https://git@github.com/attak/attak-processor.git"
+  } 
+}

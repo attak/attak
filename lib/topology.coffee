@@ -13,6 +13,9 @@ TopologyUtils =
     else
       topology = require workingDir
 
+    if topology.default
+      topology = topology.default
+
     if topology.streams?.constructor is Function
       topology.streams = topology.streams()
     

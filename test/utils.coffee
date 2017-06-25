@@ -1,6 +1,10 @@
+fs = require 'fs'
+lave = require 'lave'
+babel = require 'babel-core'
 ATTAK = require '../lib/attak'
 dotenv = require 'dotenv'
 extend = require 'extend'
+{generate} = require 'escodegen'
 TopologyUtils = require '../lib/topology'
 ServiceManager = require '../lib/simulation/service_manager'
 
@@ -28,8 +32,17 @@ TestUtils =
   setupTest: (state, topology, testOpts={}, callback) ->
     endState = TopologyUtils.loadTopology {topology}
     
+    js = lave topology, {generate, format: 'module'}
+    indexPath = "#{__dirname}/index.js"
+    
+    transformed = babel.transform js,
+      presets: ['es2015']
+    fs.writeFileSync indexPath, transformed.code
+
+    testOpts.cwd = __dirname
     testOpts.topology = topology
-    testOpts.simulation = true
+    testOpts.simulation = if testOpts.simulation is undefined then true else testOpts.simulation
+    testOpts.role = testOpts.role || process.env.AWS_ROLE_ARN || process.env.AWS_ROLE
 
     app = new ATTAK
       topology: topology
@@ -39,7 +52,9 @@ TestUtils =
     TestUtils.setupComponentTest state, endState, app, testOpts, (err, resp, cleanup) ->
       app.setState state, endState, testOpts, (err, state) ->
         resp.state = app.loadState()
-        resp.cleanup = cleanup
+        resp.cleanup = (finish) ->
+          fs.unlink indexPath
+          cleanup finish
         callback err, resp
 
 module.exports = TestUtils

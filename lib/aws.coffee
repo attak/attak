@@ -1002,15 +1002,14 @@ AWSUtils =
 
     lambda = new AWS.Lambda
       region: opts.region || 'us-east-1'
-      endpoint: opts.services['AWS:Lambda'].endpoint
+      endpoint: if opts.simulation then opts.services['AWS:Lambda'].endpoint
 
     environment = opts.environment || 'development'
     functionName = AWSUtils.getFunctionName state.name, processorName, environment
 
-    params = 
+    params =
       Payload: new Buffer JSON.stringify(data)
       FunctionName: functionName
-      InvocationType: 'Event'
 
     lambda.invoke params, (err, data) ->
       if err

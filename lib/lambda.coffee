@@ -57,7 +57,7 @@ LambdaUtils =
         console.log("ERROR SETTING UP HANDLER", environment, procName, topology, process.env)
         console.log(err.stack)
         exports.handler = function(event, context, callback) {
-          if (environment === 'development' || event.attakProcessorVerify) {
+          if (event.attakProcessorVerify) {
             callback(null, err)
           } else {
             callback(err)
@@ -114,7 +114,7 @@ LambdaUtils =
           
           awsLambda = new AWS.Lambda
             apiVersion: '2015-03-31'
-            endpoint: opts.services['AWS:API'].endpoint
+            endpoint: opts.services?['AWS:API'].endpoint
           
           awsLambda.getFunction {FunctionName: params.FunctionName}, (err, results) ->
             if err
@@ -194,6 +194,8 @@ LambdaUtils =
     if arch != 'linux.x64'
       console.warn 'Warning!!! You are building on a platform that is not 64-bit Linux (%s). ' + 'If any of your Node dependencies include C-extensions, they may not work as expected in the ' + 'Lambda environment.\n\n', arch
 
+    cwd = program.cwd || process.cwd()
+
     codeDirectory = lambda._codeDirectory(program)
     console.log "CLEANING DIRECTORY"
     lambda._cleanDirectory codeDirectory, (err) ->
@@ -202,7 +204,7 @@ LambdaUtils =
 
       # Move files to tmp folder
       console.log "MOVING TO TMP DIR"
-      lambda._rsync program, '.', codeDirectory, true, (err) ->
+      lambda._rsync program, cwd, codeDirectory, true, (err) ->
         if err
           return callback(err)
         
