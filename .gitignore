@@ -6,6 +6,7 @@ example/.env
 state.json
 simulation_state.json
 
+.attak-dynamodb-sim/
 node_modules/
 uploadcache/
 kinesisdb/
