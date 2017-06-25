@@ -3,6 +3,7 @@ nodePath = require 'path'
 TopologyUtils =
   loadTopology: (opts) ->
     workingDir = opts.cwd || process.cwd()
+    environment = opts.environment || 'development'
 
     if opts.topology
       if opts.topology.constructor is String
@@ -23,7 +24,7 @@ TopologyUtils =
             from: stream[0]
             to: stream[1]
             topic: stream[2]
-        streamName = "#{topology.name}-#{stream.from}-#{stream.to}"
+        streamName = "#{topology.name}-#{stream.from}-#{stream.to}-#{environment}"
         streamsObj[streamName] = stream
       topology.streams = streamsObj
 
