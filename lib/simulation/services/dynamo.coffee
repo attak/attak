@@ -15,10 +15,14 @@ class DynamoDB extends BaseService
 
     workingDir = opts.cwd || process.cwd()
 
-    @dynaliteServer = dynalite
+    @server = dynalite
       path: nodePath.resolve workingDir, './.attak-dynamodb-sim'
 
-    @dynaliteServer.listen @port, (err) =>
+    @server.listen @port, (err) =>
       callback err
+
+  stop: (callback) ->
+    @server?.close ->
+      callback()
 
 module.exports = DynamoDB
