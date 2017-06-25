@@ -48,6 +48,7 @@
     "readdirp": "^2.1.0",
     "rimraf": "^2.6.1",
     "s3-sync-aws": "git+https://git@github.com/attak/s3-sync-aws.git",
+    "shortid": "^2.2.8",
     "simple-peer": "^6.2.2",
     "socket.io-client": "^1.7.2",
     "tap-dot": "^1.0.5",
