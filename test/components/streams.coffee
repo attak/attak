@@ -33,8 +33,12 @@ test 'streams', (test) ->
         done()
 
   TestUtils.setupTest {}, topology, opts, (err, {opts, manager, state, cleanup}) =>
-    test.equal state.streams?['streams-test-first-second']?.id,
-      'arn:aws:kinesis:us-east-1:133713371337:stream/streams-test-first-second',
+    streamName = 'streams-test-first-second-development'
+    test.notEqual state.streams?[streamName]?.to, undefined, 'Should have a destination processor'
+    test.notEqual state.streams?[streamName]?.from, undefined, 'Should have a source processor'
+
+    test.equal state.streams?[streamName]?.id,
+      "arn:aws:kinesis:us-east-1:133713371337:stream/#{streamName}",
       'should have recorded the new stream\'s ARN as its ID'
 
     AWSUtils.triggerProcessor state, 'first', {test: 'works'}, opts, (err, results) ->
