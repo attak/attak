@@ -28,7 +28,6 @@ class Schedule extends BaseComponent
       {
         msg: 'create new schedule item'
         run: (state, done) ->
-          console.log "CREATING SCHEDULE", path, newDefs
           async.forEachOf newDefs, (defs, scheduleName, next) ->
 
             state = extend true, state,

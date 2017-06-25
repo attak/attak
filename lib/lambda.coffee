@@ -10,7 +10,7 @@ NodeZip = require 'node-zip'
 nodePath = require 'path'
 AWSUtils = require './aws'
 
-DEBUG = true
+DEBUG = false
 log = -> if DEBUG then console.log arguments...
 
 LambdaUtils =
@@ -123,7 +123,7 @@ LambdaUtils =
                 retval[params.FunctionName] = [err, results]
                 nextRegion err
             else
-              log "Updating existing function", params.FunctionName, params
+              log "Updating existing function", params.FunctionName
               LambdaUtils.uploadExisting awsLambda, params, (err, results) ->
                 retval[params.FunctionName] = [err, results]
                 nextRegion err
@@ -185,35 +185,32 @@ LambdaUtils =
         callback null, data
 
   buildAndArchive: (program, callback) ->
-    console.log "BUILD AND ARCHIVE", program.simulation
     if program.simulation
       return callback()
 
     # Warn if not building on 64-bit linux
     arch = process.platform + '.' + process.arch
-    if arch != 'linux.x64'
-      console.warn 'Warning!!! You are building on a platform that is not 64-bit Linux (%s). ' + 'If any of your Node dependencies include C-extensions, they may not work as expected in the ' + 'Lambda environment.\n\n', arch
 
     cwd = program.cwd || process.cwd()
 
     codeDirectory = lambda._codeDirectory(program)
-    console.log "CLEANING DIRECTORY"
+    log "CLEANING DIRECTORY"
     lambda._cleanDirectory codeDirectory, (err) ->
       if err
         return callback(err)
 
       # Move files to tmp folder
-      console.log "MOVING TO TMP DIR"
+      log "MOVING TO TMP DIR"
       lambda._rsync program, cwd, codeDirectory, true, (err) ->
         if err
           return callback(err)
         
-        console.log "NPM INSTALL PRODUCTION"
+        log "NPM INSTALL PRODUCTION"
         lambda._npmInstall program, codeDirectory, (err) ->
           if err
             return callback(err)
 
-          console.log "POST INSTALL"
+          log "POST INSTALL"
           lambda._postInstallScript program, codeDirectory, (err) ->
             if err
               return callback(err)
@@ -222,9 +219,9 @@ LambdaUtils =
             if program.configFile
               lambda._setEnvironmentVars program, codeDirectory
 
-            console.log "ZIP"
+            log "ZIP"
             LambdaUtils.zipDir program, codeDirectory, (err, buffer) ->
-              console.log "DONE"
+              log "DONE"
               callback err, buffer
 
 module.exports = LambdaUtils

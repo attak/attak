@@ -13,7 +13,7 @@ readdirp = require 'readdirp'
 publicIp = require 'public-ip'
 kinesisStreams = require 'kinesis'
 
-DEBUG = true
+DEBUG = false
 log = -> if DEBUG then console.log arguments...
 
 if process.env.TRAVIS
@@ -489,7 +489,6 @@ AWSUtils =
 
     scheduleId = undefined
     async.forEachOf topology.schedule, (defs, scheduleName, next) ->
-      console.log "SETUP SCHEDULE", scheduleName, defs, opts.services['AWS:CloudWatchEvents'].endpoint
       functionName = AWSUtils.getFunctionName topology.name, defs.processor, environment
       
       async.waterfall [
