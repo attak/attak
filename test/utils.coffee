@@ -46,6 +46,8 @@ TestUtils =
     testOpts.topology = topology
     testOpts.role = testOpts.role || process.env.AWS_ROLE_ARN || process.env.AWS_ROLE
 
+    console.log "DEPLOYING WITH TEST OPS", testOpts
+
     app = new ATTAK
       topology: topology
       simulation: testOpts.simulation
