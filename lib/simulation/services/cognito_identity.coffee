@@ -1,6 +1,6 @@
 BaseService = require '../base_service'
 
-class Cognito extends BaseService
+class CognitoIdentity extends BaseService
 
   paths: [
     'AWS:CognitoIdentity'
@@ -10,4 +10,4 @@ class Cognito extends BaseService
     @port = opts.port || 55223
     super arguments...
 
-module.exports = Cognito
+module.exports = CognitoIdentity
