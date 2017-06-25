@@ -57,7 +57,8 @@ TestUtils =
       app.setState state, endState, testOpts, (err, state) ->
         resp.state = app.loadState()
         resp.cleanup = (finish) ->
-          fs.unlink indexPath
+          if testOpts.simulation is false
+            fs.unlink indexPath
           cleanup finish
         callback err, resp
 
