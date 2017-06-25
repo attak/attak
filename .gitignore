@@ -2,6 +2,7 @@ attak.sublime-*
 
 example/attak_runner.js
 example/.env
+.env
 
 state.json
 simulation_state.json
