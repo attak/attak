@@ -40,6 +40,9 @@ TestUtils =
         presets: ['es2015']
       fs.writeFileSync indexPath, transformed.code
       testOpts.cwd = __dirname
+
+      testOpts.accessKey = process.env.AWS_ACCESS_KEY_ID
+      testOpts.secretKey = process.env.AWS_SECRET_ACCESS_KEY
     else
       testOpts.simulation = true
 
