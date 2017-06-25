@@ -104,8 +104,8 @@ LambdaUtils =
             AWS.config.credentials = new AWS.SharedIniFileCredentials
               profile: opts.profile
           else
-            aws_security.accessKeyId = opts.accessKey
-            aws_security.secretAccessKey = opts.secretKey
+            aws_security.accessKeyId = opts.accessKey || process.env.AWS_ACCESS_KEY_ID
+            aws_security.secretAccessKey = opts.secretKey || process.env.AWS_SECRET_ACCESS_KEY
           
           if opts.sessionToken
             aws_security.sessionToken = opts.sessionToken
