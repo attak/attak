@@ -7,7 +7,7 @@ class CloudWatchEvents extends BaseService
   ]
 
   setup: (config, opts, callback) ->
-    @port = config.port || 21321
+    @port = opts.port || 21321
     super arguments...
 
 module.exports = CloudWatchEvents

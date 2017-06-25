@@ -10,7 +10,10 @@ BaseComponent = require './base_component'
 
 class Static extends BaseComponent
   namespace: 'static'
-  dependencies: ['name']
+  dependencies: [
+    'name'
+    'auth'
+  ]
 
   simulation:
     services: ->
@@ -32,6 +35,22 @@ class Static extends BaseComponent
 
         async.forEachOf newDefs, (defs, staticName, next) ->
           AWSUtils.setupStatic state, staticName, opts, (err, results) ->
+
+            endpoints = {}
+            for serviceName, service of opts.services
+              endpoints[serviceName] = service.endpoint
+
+            staticConfig =
+              name: staticName
+              auth: state.auth
+              endpoints: endpoints
+              environment: opts.environment || 'development'
+
+            workingDir = opts.workingDir || process.cwd()
+            configDir = state.static[staticName].configWriteDir || state.static[staticName].dir
+            staticDir = nodePath.resolve workingDir, configDir
+
+            fs.writeFileSync "#{staticDir}/attak-static-config.json", JSON.stringify(staticConfig, null, 2)
             next err
         , (err) ->
           done err, state

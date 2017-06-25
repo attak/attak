@@ -2,12 +2,13 @@ AWS = require 'aws-sdk'
 uuid = require 'uuid'
 async = require 'async'
 extend = require 'extend'
+shortid = require 'shortid'
 AWSUtils = require '../aws'
 queryString = require 'query-string'
 BaseComponent = require './base_component'
 
 class Auth extends BaseComponent
-  namespace: 'permissions'
+  namespace: 'auth'
   platforms: ['AWS']
 
   dependencies: [
@@ -40,10 +41,11 @@ class Auth extends BaseComponent
             AWSUtils.setupCognito authName, state, opts, (err, results) ->
               state = extend true, state,
                 auth:
-                  "#{authName}":
-                    id: results
+                  "#{authName}": results
 
-              next err          
+              next err
+          , (err) ->
+            done err, state
       }
     ]
 
@@ -110,14 +112,16 @@ class Auth extends BaseComponent
       IdentityPoolId: uuid.v1()
 
   handleCreateUserPool: (state, opts, req, res) ->
+    region = opts.region || 'us-east-1'
     res.send
       UserPool:
-        Id: uuid.v1()
+        Id: "#{region}_#{shortid.generate()}"
 
   handleCreateUserPoolClient: (state, opts, req, res) ->
+    region = opts.region || 'us-east-1'
     res.send
       UserPoolClient:
-        ClientId: uuid.v1()
+        ClientId: uuid.v1().split('-').join('')
         ClientName: req.body.PoolName
 
   handleSetIdentityPoolRoles: (state, opts, req, res) ->

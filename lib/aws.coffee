@@ -1120,6 +1120,8 @@ AWSUtils =
       region: region
       endpoint: opts.services['AWS:CognitoIdentityServiceProvider'].endpoint
 
+    retval = {}
+
     async.waterfall [
       (done) ->
         poolName = AWSUtils.getIdentityPoolName state.name, authName, environment
@@ -1163,6 +1165,9 @@ AWSUtils =
         cognitoServiceProvider.createUserPool params, (err, results) ->
           log "CREATE USER POOL RESULTS", err, results, params
           data.userPool = results.UserPool
+          retval.userPool =
+            id: results.UserPool.Id
+            name: poolName
           done err, data
 
       (data, done) ->
@@ -1174,6 +1179,9 @@ AWSUtils =
 
         cognitoServiceProvider.createUserPoolClient params, (err, results) ->
           log "CREATE POOL CLIENT RESULTS", err, results, params, data
+          retval.userPoolClient =
+            id: results.UserPoolClient.ClientId
+            name: clientName
           done err, data
       
       (data, done) ->
@@ -1199,6 +1207,6 @@ AWSUtils =
           done err, data
     ], (err) ->
       console.log "ALL DONE", err
-      callback err
+      callback err, retval
 
 module.exports = AWSUtils
