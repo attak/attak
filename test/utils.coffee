@@ -35,9 +35,10 @@ TestUtils =
     js = lave topology, {generate, format: 'module'}
     indexPath = "#{__dirname}/index.js"
     
-    transformed = babel.transform js,
-      presets: ['es2015']
-    fs.writeFileSync indexPath, transformed.code
+    if testOpts.simulation is false
+      transformed = babel.transform js,
+        presets: ['es2015']
+      fs.writeFileSync indexPath, transformed.code
 
     testOpts.cwd = __dirname
     testOpts.topology = topology
