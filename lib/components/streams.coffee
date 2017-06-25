@@ -108,6 +108,10 @@ class Streams extends BaseComponent
           name: streamName
 
         AWSUtils.associateStream state, streamDefs, targetProcessor, opts, (err, associationResults) ->
+          state = extend true, state,
+            streams:
+              "#{streamName}": streamDefs
+
           callback err, streamDefs, associationResults
 
   invokeProcessor: (processorName, fullName, data, state, opts, callback) ->
@@ -164,23 +168,7 @@ class Streams extends BaseComponent
           res.json
             message: "Stream already exists with name #{req.body.StreamName}"
         else
-          if state.streams is undefined
-            state.streams = {}
-          if state.streams[req.body.StreamName] is undefined
-            state.streams[req.body.StreamName] = {}
-
-          newStreamState =
-            id: "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
-
-          for procName, procDefs of (state.processors || {})
-            [stateName, otherProc] = req.body.StreamName.split("#{procName}-")
-            if otherProc and state.processors?[otherProc] isnt undefined
-              newStreamState.to = otherProc
-              newStreamState.from = procName
-              break
-
-          state.streams[req.body.StreamName] = newStreamState
-
+          #   Arn: "arn:aws:kinesis:us-east-1:133713371337:stream/#{req.body.StreamName}"
           res.json ok: true
 
       when 'DescribeStream'
