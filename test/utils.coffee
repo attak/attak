@@ -39,10 +39,11 @@ TestUtils =
       transformed = babel.transform js,
         presets: ['es2015']
       fs.writeFileSync indexPath, transformed.code
+      testOpts.cwd = __dirname
+    else
+      testOpts.simulation = true
 
-    testOpts.cwd = __dirname
     testOpts.topology = topology
-    testOpts.simulation = if testOpts.simulation is undefined then true else testOpts.simulation
     testOpts.role = testOpts.role || process.env.AWS_ROLE_ARN || process.env.AWS_ROLE
 
     app = new ATTAK
