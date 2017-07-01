@@ -55,8 +55,7 @@ class ComponentManager
       url: "/#{path.join '/'}"
 
     @router.handle request, response, (err) ->
-      if hasCalledBack is false
-        callback err, plan
+      callback err, plan
 
   flattenObject: (ob) ->
     what = Object.prototype.toString
