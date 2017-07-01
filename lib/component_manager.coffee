@@ -17,7 +17,7 @@ class ComponentManager
       params = req.params
 
       res.handle component, params, plan, (err, results) =>
-        console.log "TRIGGER RESULTS", err, results
+        next()
 
     structure = component.structure
 
@@ -38,9 +38,12 @@ class ComponentManager
         notifyOpts = extend true, {}, opts
         notifyOpts.preventNotify = true
         notifyOpts.fromNamespace = fromNamespace
+
         component.planResolution oldState, newState, diffs, notifyOpts, plan, (err, newPlan) ->
+          if err then return callback err, plan
+          
           plan = newPlan
-          callback err, plan
+          nextHandler()
 
     request =
       method: 'POST'
@@ -51,12 +54,8 @@ class ComponentManager
         newState: newState
       url: "/#{path.join '/'}"
 
-    # Express router sometimes calls back multiple times for 
-    # unhandled changes, so we ignore subsequent ones
-    hasCalledBack = false
     @router.handle request, response, (err) ->
       if hasCalledBack is false
-        hasCalledBack = true
         callback err, plan
 
   flattenObject: (ob) ->
