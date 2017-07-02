@@ -16,7 +16,9 @@ class ComponentManager
       plan = req.body.plan
       params = req.params
 
-      res.handle component, params, plan, (err, results) =>
+      res.handle component, params, plan, (err, newPlan) =>
+        plan = newPlan
+        req.updatePlan newPlan
         next()
 
     structure = component.structure
@@ -40,10 +42,7 @@ class ComponentManager
         notifyOpts.fromNamespace = fromNamespace
 
         component.planResolution oldState, newState, diffs, notifyOpts, plan, (err, newPlan) ->
-          if err then return callback err, plan
-          
-          plan = newPlan
-          nextHandler()
+          nextHandler err, newPlan
 
     request =
       method: 'POST'
@@ -53,6 +52,8 @@ class ComponentManager
         oldState: oldState
         newState: newState
       url: "/#{path.join '/'}"
+      updatePlan: (newPlan) ->
+        plan = newPlan
 
     @router.handle request, response, (err) ->
       callback err, plan

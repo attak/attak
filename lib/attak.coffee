@@ -33,15 +33,4 @@ class ATTAK extends BaseComponent
         path: [key]
       @addChild key, child
 
-  handleDiff: (state, diff, opts) ->
-    async.forEachOf diff.rhs, (val, key, next) =>
-      component = @children[key]
-      if component is undefined
-        return next new Error "No component for namespace #{key}"
-
-      component.setState val, ->
-        next()
-    , (err) ->
-      callback err
-
 module.exports = ATTAK
