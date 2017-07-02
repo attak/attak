@@ -14,9 +14,6 @@ class BaseService
     @endpoint = "http://#{@host}:#{@port}"
 
     @app = express()
-    
-    @app.use (req, res, next) =>
-      next()
 
     unless @disableParsing
       @app.use bodyParser.json
