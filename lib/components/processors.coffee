@@ -20,6 +20,7 @@ class Processors extends BaseComponent
         handlers:
           "POST /:apiVerison/functions/:functionName/invoke-async": @handleInvoke
           "POST /:apiVerison/functions/:functionName/invocations": @handleInvoke
+          "DELETE /:apiVerison/functions/:functionName": @handleDeleteFunction
           "GET /:apiVerison/functions/:functionName": @handleGetFunction
           "POST /:apiVerison/functions": @handleCreateFunction
           "PUT /:apiVerison/functions": @handleCreateFunction
@@ -27,7 +28,7 @@ class Processors extends BaseComponent
   structure:
     ':processorName':
       id: 'id'
-      name: 'name'
+      name: '/name'
 
   fetchState: (callback) ->
     state = {}
@@ -66,33 +67,70 @@ class Processors extends BaseComponent
     , (err, numPages) ->
       callback err, functions
 
+  handleNameChange: (state, newName, opts, callback) ->
+    if Object.keys(state.processors || {}).length > 0      
+      oldProcessors = extend true, {}, state.processors
+
+      processorList = Object.keys(state.processors)
+      @removeProcessors state, processorList, newName, opts, (err) =>
+        @createProcessors state, oldProcessors, opts, (err, addedState) ->
+          callback err, addedState
+    else
+      callback null, {}
+
+  removeProcessors: (state, processorList, newState, opts, callback) ->
+    AWSUtils.removeProcessors state.name, processorList, opts, (err, results) ->
+      for processor in processorList
+        delete state.processors[processor]
+      callback err
+
+  createProcessors: (state, newState, opts, callback) ->
+    deployOpts = extend true, {}, opts
+    deployOpts = extend true, deployOpts,
+      name: state.name
+      services: opts.services
+      processors: newState
+
+    LambdaUtils.deployProcessors state, deployOpts, (err, procDatas) ->
+      addedState =
+        processors: {}
+      
+      for funcName, procData of procDatas
+        [err, results] = procData
+
+        if err
+          console.log "PROC DATA ERR", funcName, err, results
+
+        environment = opts.environment || 'development'
+        extendedProcName = funcName.split("-#{environment}")[0]
+        procName = extendedProcName.split("#{state.name}-")[1]
+        addedState.processors[procName] =
+          id: results.FunctionArn
+
+      callback err, addedState
+
   handleDiffs: (currentState, newState, diffs=[], opts) ->
     [
       msg: 'resolve processor state'
-      run: (state, done) ->
-        deployOpts = extend true, {}, opts
-        deployOpts = extend true, deployOpts,
-          name: state.name
-          services: opts.services
-          processors: newState
+      run: (state, done) =>
 
-        LambdaUtils.deployProcessors state, deployOpts, (err, procDatas) ->
-          addedState =
-            processors: {}
-          
-          for funcName, procData of procDatas
-            [err, results] = procData
+        async.each diffs, (diff, nextDiff) =>
+          switch diff.path[0]
+            when 'name'
+              @handleNameChange state, newState, opts, (err, addedState) ->
+                if err then return nextDiff err
+                state = extend true, state, addedState
+                nextDiff()
+            when 'processors'
+              @createProcessors state, newState, opts, (err, addedState) ->
+                if err then return nextDiff err
+                state = extend true, state, addedState
+                nextDiff()
 
-            if err
-              console.log "PROC DATA ERR", funcName, err, results
-
-            environment = opts.environment || 'development'
-            extendedProcName = funcName.split("-#{environment}")[0]
-            procName = extendedProcName.split("#{state.name}-")[1]
-            addedState.processors[procName] =
-              id: results.FunctionArn
-
-          state = extend true, state, addedState
+            else
+              err = new Error "UNKNOWN PROCESSOR CHANGE PATH", dif
+              nextDiff err
+        , (err) ->
           done err, state
     ]
 
@@ -151,6 +189,9 @@ class Processors extends BaseComponent
         CodeSize: 8469826
         Version: '$LATEST'
         TracingConfig: Mode: 'PassThrough'
+
+  handleDeleteFunction: (state, opts, req, res) ->
+    res.end()
 
   handleGetFunction: (state, opts, req, res) ->
     name = req.params.functionName

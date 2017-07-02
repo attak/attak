@@ -1,23 +1,30 @@
 require 'coffee-errors'
 test = require 'tape'
-AWSUtils = require '../../lib/aws'
-TestUtils = require '../utils'
+AWSUtils = require '../../../lib/aws'
+TestUtils = require '../../utils'
 
-test 'processors', (test) ->
-  topology =
-    name: 'processors-test'
+test 'processors update', (test) ->
+  helloProc = (event, context, callback) ->
+    callback null, 
+      event: event
+      context: context
+      resp: {ok: true}
+
+  initialState =
+    name: 'previous-name'
     processors:
-      hello: (event, context, callback) ->
-        callback null, 
-          event: event
-          context: context
-          resp: {ok: true}
+      hello: helloProc
 
-  TestUtils.setupTest {}, topology, {}, (err, {opts, manager, state, cleanup}) =>
+  topology =
+    name: 'processors-update-test'
+    processors:
+      hello: helloProc
+
+  TestUtils.setupTest initialState, topology, {}, (err, {opts, manager, state, cleanup}) =>
 
     test.equal err, null, 'should setup test without error'
     test.equal state?.processors?.hello?.id,
-      'arn:aws:lambda:us-east-1:133713371337:function:processors-test-hello-development',
+      'arn:aws:lambda:us-east-1:133713371337:function:processors-update-test-hello-development',
       'should have recorded the new processor\'s ARN as its ID'
     
     AWSUtils.triggerProcessor state, 'hello', {test: 'works'}, opts, (err, results) ->

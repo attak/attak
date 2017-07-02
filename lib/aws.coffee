@@ -1016,6 +1016,24 @@ AWSUtils =
 
       callback err, data
 
+  removeProcessors: (name, processorList, opts, callback) ->
+    lambda = new AWS.Lambda
+      region: opts.region || 'us-east-1'
+      endpoint: if opts.simulation isnt false then opts.services['AWS:Lambda'].endpoint
+
+    environment = opts.environment || 'development'
+    
+    async.each processorList, (procName, next) ->
+      functionName = AWSUtils.getFunctionName name, procName, environment
+      params =
+        FunctionName: functionName
+
+      lambda.deleteFunction params, (err, results) ->
+        log "DELETE RESULTS", err, results
+        next err
+    , (err) ->
+      callback err
+
   monitorLogs: (program, processor, callback) ->
     logs = new AWS.CloudWatchLogs
 

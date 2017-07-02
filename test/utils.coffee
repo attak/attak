@@ -14,20 +14,21 @@ TestUtils =
   setupComponentTest: (oldState, newState, component, testOpts={}, callback) ->
     services = component.getSimulationServices()
 
-    manager = new ServiceManager
-      app: component
-    manager.setup oldState, testOpts, services, (err, services) ->
-      opts =
-        role: 'testrole'
-        target: extend true, testOpts?.target || {}, newState || {}
-        services: services
+    component.setup ->
+      manager = new ServiceManager
+        app: component
+      manager.setup oldState, testOpts, services, (err, services) ->
+        opts =
+          role: 'testrole'
+          target: extend true, testOpts?.target || {}, newState || {}
+          services: services
 
-      resp = {opts, manager, oldState, newState}
-      cleanup = (finish) ->
-        manager.stopAll ->
-          finish()
+        resp = {opts, manager, oldState, newState}
+        cleanup = (finish) ->
+          manager.stopAll ->
+            finish()
 
-      callback err, resp, cleanup
+        callback err, resp, cleanup
 
   setupTest: (state, topology, testOpts={}, callback) ->
     endState = TopologyUtils.loadTopology {topology}
